@@ -1,0 +1,8 @@
+# Web UI 依賴（Flask）
+
+# Web UI (Flask)
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# HTTP 請求（代理到 Agent API）
+requests>=2.31.0

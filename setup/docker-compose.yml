@@ -1,0 +1,95 @@
+services:
+  # ============= Agent API Service (with Session module) =============
+  agent:
+    build:
+      context: ..
+      dockerfile: setup/Dockerfile.agent
+    container_name: shrimp-agent
+    
+    # Expose Agent API port (localhost only)
+    ports:
+      - "127.0.0.1:8000:8000"
+    
+    # Use relative paths (cross-platform compatible)
+    # ⚠️ Note: Only mount data directories, NOT code directories
+    # Code is copied via Dockerfile COPY (avoids volume override issues)
+    volumes:
+      - ../workspace:/workspace:rw    # WORKSPACE (includes personas + knowledge)
+      - ../downloads:/downloads:rw
+      - ../data:/data:rw              # SQLite persistence (Session)
+    
+    # Working directory
+    working_dir: /app
+    
+    # Environment variables
+    env_file:
+      - .env
+    
+    # KNOWLEDGE configuration
+    environment:
+      - KNOWLEDGE_BASE_PATH=/workspace/knowledge
+      - KNOWLEDGE_PASSPHRASE=${KNOWLEDGE_PASSPHRASE:-5688}
+    
+    # Security restrictions
+    read_only: true
+    tmpfs:
+      - /tmp:size=300M,mode=1777
+      - /var/tmp:size=100M,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "print('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Network configuration
+    networks:
+      - shrimp-network
+
+  # ============= Web UI Service =============
+  web:
+    build:
+      context: ..
+      dockerfile: setup/Dockerfile.web
+    container_name: shrimp-web
+    command: ["python", "app.py"]
+    
+    # Mount data directories only (code copied via Dockerfile)
+    volumes:
+      - ../workspace:/workspace:rw
+      - ../downloads:/downloads:rw
+    
+    environment:
+      - AGENT_API_URL=http://agent:8000
+    
+    # Web UI bound to localhost (security)
+    ports:
+      - "127.0.0.1:5000:5000"
+    
+    depends_on:
+      - agent
+    
+    restart: unless-stopped
+    
+    networks:
+      - shrimp-network
+
+# ============= Network Configuration =============
+networks:
+  shrimp-network:
+    driver: bridge

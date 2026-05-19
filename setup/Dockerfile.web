@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Web dependencies
+COPY setup/requirements.web.txt .
+RUN pip install --no-cache-dir -r requirements.web.txt
+
+# Copy Web UI app.py
+COPY web/app.py ./app.py
+
+# Copy Frontend (static files + templates)
+COPY web/static/ ./static/
+COPY web/templates/ ./templates/
+
+# UTF-8 Environment
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Agent API URL (Docker network)
+ENV AGENT_API_URL=http://agent:8000
+
+# Start Web UI
+CMD ["python", "app.py"]

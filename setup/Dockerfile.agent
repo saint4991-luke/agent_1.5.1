@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Agent dependencies
+COPY setup/requirements.agent.txt .
+RUN pip install --no-cache-dir -r requirements.agent.txt
+
+# Copy Shared module (shared functionality)
+COPY agent/shared/ ./shared/
+
+# Copy Virtual Human Agent
+COPY agent/virtual_human/ ./virtual_human/
+
+# Copy Backend Operator Agent
+COPY agent/backend_operator/ ./backend_operator/
+
+# Copy Session module (independent module)
+COPY session/ ./session/
+
+# Copy Tools directory (reusable tools)
+COPY tools/ ./tools/
+
+# UTF-8 Environment
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# KNOWLEDGE directory
+ENV KNOWLEDGE_BASE_PATH=/workspace/knowledge
+RUN mkdir -p /workspace/knowledge && chmod 755 /workspace/knowledge
+
+# Default: Start Backend Operator Agent (includes VH Router)
+CMD ["python", "backend_operator/api.py"]
