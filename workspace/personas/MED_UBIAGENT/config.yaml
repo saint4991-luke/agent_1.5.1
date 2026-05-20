@@ -1,0 +1,91 @@
+# ===========================================
+# 醫療展 UbiChan 角色配置文件 v2.0
+# ===========================================
+# 說明：醫療展場景服務虛擬人
+# 維護者：Luke Liu
+# 最後更新：2026-05-20
+# 規格：specs/prompt-generation-spec.md v2.1
+# ===========================================
+
+# -------------------------------------------
+# 基本設定
+# -------------------------------------------
+# persona_id: 角色唯一識別（小寫英文，用於 Session ID 前綴）
+# display_name: 顯示名稱（人類可讀）
+persona_id: med-ubichan
+display_name: 醫療展 UbiChan
+
+# -------------------------------------------
+# 風格定義
+# -------------------------------------------
+# file: 風格文件路徑（相對於 personas/{persona_id}/）
+# 風格文件應包含：
+#   - 角色設定（身份背景、性格特徵、說話風格）
+#   - 回覆規則（必須遵守的原則、禁止事項）
+#   - 範例對話
+style:
+  file: style.md
+
+# -------------------------------------------
+# 輸出格式
+# -------------------------------------------
+# virtual_human: 情緒標籤 + 語言標籤 + 斷句符號（用於前端表演）
+# chat: 一般文字回應，無特殊格式（用於純文字對話）
+output_format: virtual_human
+
+# -------------------------------------------
+# 知識庫設定
+# -------------------------------------------
+# enabled: 是否啟用知識庫（true | false）
+# folders: 有權限讀取的知識庫資料夾（相對於 /workspace/knowledge/）
+# 知識庫用於 RAG（檢索增強生成），LLM1 讀取 Meta，LLM2 讀取完整內容
+knowledge:
+  enabled: true
+  folders:
+    - "medical_expo/"
+    - "hospital_services/"
+
+# -------------------------------------------
+# 工具設定（保留擴充）
+# -------------------------------------------
+# enabled: 是否啟用工具（true | false）
+# available: 可用的工具列表
+# 未來可擴充：web_search, calculator, calendar 等
+# 醫療展場景：需要呼叫豹小秘機器人
+tools:
+  enabled: true
+  available:
+    - "robot_dispatch"  # 呼叫豹小秘機器人
+    - "navigate"        # 導航指令
+    - "pickup_item"     # 物品運送
+    - "speak"           # 語音播放
+    - "cancel"          # 取消動作
+
+# -------------------------------------------
+# Metadata（元數據）
+# -------------------------------------------
+# version: 配置文件版本（建議使用語義版本）
+# persona_type: 角色類型（virtual_idol | health_professional | assistant | ...）
+# company: 所屬公司或組織
+# target_audience: 目標受眾
+# tone: 語氣風格（cheerful, professional, gentle, ...）
+metadata:
+  version: "1.0"
+  persona_type: "health_assistant"
+  company: "UbiBOS"
+  target_audience: "醫療展來賓"
+  tone: "professional, warm, helpful"
+
+# ===========================================
+# 使用說明
+# ===========================================
+# 1. 此配置文件專為醫療展場景設計
+# 2. UbiChan 負責接待來賓、判斷需求、呼叫豹小秘協助
+# 3. 豹小秘為引導機器人，負責帶路、物品運送
+# 4. 參考文檔：docs/01_designs/MED_UBIAGENT.md
+#
+# 參考文件：
+#   - specs/prompt-generation-spec.md v2.1
+#   - specs/virtual-human-output-spec.md
+#   - docs/01_designs/MED_UBIAGENT.md
+# ===========================================
