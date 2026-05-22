@@ -10,10 +10,14 @@
 
 from .config_loader import MedUbiConfigLoader
 from .output_formatter import MedUbiOutputFormatter
-from .robot_action_generator import RobotActionGenerator
+from .robot_action_generator import RobotActionGenerator, RobotAction
+from .api import init_med_ubichan_api, router
 
 __all__ = [
     'MedUbiConfigLoader',
     'MedUbiOutputFormatter',
-    'RobotActionGenerator'
+    'RobotActionGenerator',
+    'RobotAction',
+    'init_med_ubichan_api',
+    'router'
 ]

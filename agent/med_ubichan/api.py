@@ -1,0 +1,587 @@
+"""
+API 端點 - 醫療展 Virtual Human Agent (UbiChan × 豹小秘)
+
+提供醫療展專用的 /sessions 和 /chat 端點，支持雙機器人協作：
+- UbiChan：虛擬人（Kiosk 螢幕）— 對話接待、需求判斷、指令下達
+- 豹小秘：引導機器人（地面）— 帶路引導、物品運送、現場互動
+
+根據 MED_UBIAGENT 規格文檔 v1.0 實現
+"""
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+from pathlib import Path
+import asyncio
+import json
+import time
+
+# 流式模組
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent / 'shared'))
+from sse_events import StreamEvent, format_sse_event
+from block_chunker import BlockChunker
+
+# Tools 模組（添加到 Python path）
+sys.path.insert(0, str(Path(__file__).parent.parent / 'tools'))
+
+# 醫療展專用模組
+from .config_loader import MedUbiConfigLoader
+from .output_formatter import MedUbiOutputFormatter
+from .robot_action_generator import RobotActionGenerator, RobotAction
+
+# 這些會在 agent-api-streaming.py 中初始化
+# config_loader = None
+# session_store = None
+# llm_service = None
+
+router = APIRouter()
+
+
+# ============= 請求/回應模型 =============
+
+class CreateSessionRequest(BaseModel):
+    """創建 Session 請求"""
+    persona_id: str
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class CreateSessionResponse(BaseModel):
+    """創建 Session 回應"""
+    session_id: str
+    persona_id: str
+    created_at: str
+
+
+class ChatRequest(BaseModel):
+    """Chat 請求"""
+    session_id: str
+    message: Optional[str] = None
+    messages: Optional[list] = None
+    
+    def get_message(self) -> str:
+        """取得用戶消息（支持 message 或 messages 格式）"""
+        if self.message:
+            return self.message
+        if self.messages and len(self.messages) > 0:
+            for msg in reversed(self.messages):
+                if msg.get('role') == 'user':
+                    return msg.get('content', '')
+        return ''
+
+
+class ChatResponse(BaseModel):
+    """Chat 回應"""
+    session_id: str
+    response: str
+    emotion: Optional[str] = None
+    lang: Optional[str] = None
+    persona_id: str
+    robot_action: Optional[Dict[str, Any]] = None  # 豹小秘 Action
+    robot_steps: Optional[str] = None  # 自然語言步驟
+    timings: Optional[Dict[str, Any]] = None
+    usage: Optional[Dict[str, Any]] = None
+
+
+# ============= 全局變數 =============
+
+# 醫療展專用組件
+config_loader: Optional[MedUbiConfigLoader] = None
+formatter: Optional[MedUbiOutputFormatter] = None
+action_gen: Optional[RobotActionGenerator] = None
+
+# LLM 服務（外部注入）
+llm_service = None
+
+
+# ============= Intent 分類器 =============
+
+async def classify_intent(
+    user_message: str,
+    conversation_history: list = None
+) -> Dict[str, Any]:
+    """
+    分類用戶意圖（醫療展專用）
+    
+    根據 MED_UBIAGENT.md 規格，支持以下 Intent：
+    - registration: 掛號
+    - pharmacy: 拿藥
+    - cancel: 取消
+    - info_location: 地點詢問（主動帶路）
+    - info_other: 其他資訊
+    - other: 其他
+    
+    Args:
+        user_message: 用戶消息
+        conversation_history: 對話歷史（可選）
+    
+    Returns:
+        {
+            "intent": str,
+            "confidence": float,
+            "target_location": Optional[str],
+            "requires_robot": bool
+        }
+    """
+    global llm_service
+    
+    # 簡單的關鍵字匹配（快速路徑）
+    message_lower = user_message.lower()
+    
+    # 掛號
+    if any(kw in message_lower for kw in ['掛號', '登記', '報到', '我想去掛號']):
+        return {
+            "intent": "registration",
+            "confidence": 0.9,
+            "target_location": "registration",
+            "requires_robot": True
+        }
+    
+    # 拿藥
+    if any(kw in message_lower for kw in ['拿藥', '取藥', '藥品', '藥局']):
+        return {
+            "intent": "pharmacy",
+            "confidence": 0.9,
+            "target_location": "pharmacy",
+            "requires_robot": True
+        }
+    
+    # 取消
+    if any(kw in message_lower for kw in ['停止', '取消', '不要了', '請停止']):
+        return {
+            "intent": "cancel",
+            "confidence": 0.95,
+            "target_location": None,
+            "requires_robot": True
+        }
+    
+    # 地點詢問（主動帶路）
+    if any(kw in message_lower for kw in ['哪裡', '怎麼走', '在哪', '怎麼去']):
+        # 判斷目標地點
+        target = None
+        if any(kw in message_lower for kw in ['掛號', '登記']):
+            target = "registration"
+        elif any(kw in message_lower for kw in ['藥', '取藥']):
+            target = "pharmacy"
+        elif any(kw in message_lower for kw in ['櫃台', '服務台']):
+            target = "counter"
+        
+        if target:
+            return {
+                "intent": "info_location",
+                "confidence": 0.85,
+                "target_location": target,
+                "requires_robot": True  # 主動帶路
+            }
+    
+    # 使用 LLM 進行更精準的分類（如果關鍵字匹配失敗）
+    if llm_service:
+        try:
+            prompt = f"""你是一個醫療展意圖分類助手。請分類用戶的意圖。
+
+支持的意圖：
+- registration: 掛號、登記、報到
+- pharmacy: 拿藥、取藥、藥品
+- cancel: 停止、取消
+- info_location: 詢問地點（哪裡、怎麼走）
+- info_other: 其他資訊詢問
+- other: 其他
+
+用戶消息：{user_message}
+
+請只返回 JSON 格式：
+{{
+    "intent": "意圖名稱",
+    "confidence": 0.9,
+    "target_location": "地點 ID 或 null",
+    "requires_robot": true/false
+}}
+"""
+            llm_response = await llm_service.chat_async(
+                messages=[
+                    {"role": "system", "content": "你是一個意圖分類助手。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0
+            )
+            
+            # 解析 LLM 回應
+            result = json.loads(llm_response)
+            return result
+        
+        except Exception as e:
+            print(f"⚠️ LLM 意圖分類失敗：{e}，使用關鍵字匹配")
+    
+    # 預設：其他
+    return {
+        "intent": "other",
+        "confidence": 0.5,
+        "target_location": None,
+        "requires_robot": False
+    }
+
+
+# ============= 醫療展 Chat 生成器 =============
+
+async def generate_med_ubichan_stream(
+    request: ChatRequest,
+    persona_config: dict,
+    session_store
+):
+    """
+    醫療展 Virtual Human STREAM 生成器
+    
+    流程：
+    1. 意圖分類
+    2. 生成 UbiChan 回應（情緒標籤格式）
+    3. 生成豹小秘 Action（如果需要）
+    4. STREAM 發送
+    
+    Args:
+        request: ChatRequest
+        persona_config: 醫療展 Persona 配置
+        session_store: Session Store 實例
+    
+    Yields:
+        SSE 格式事件
+    """
+    global formatter, action_gen, llm_service
+    
+    start_time = asyncio.get_event_loop().time()
+    user_message = request.get_message()
+    
+    # 獲取時間戳
+    created = int(start_time)
+    event_id = f"{request.session_id}_{created}"
+    
+    # ========== 階段 1: 意圖分類 ==========
+    print("🔍 階段 1: 意圖分類")
+    intent_start = time.time()
+    
+    intent_result = await classify_intent(user_message)
+    
+    intent_time = int((time.time() - intent_start) * 1000)
+    print(f"✅ 意圖：{intent_result['intent']} ({intent_time}ms)")
+    
+    # ========== 階段 2: 生成 UbiChan 回應 ==========
+    print("📝 階段 2: 生成 UbiChan 回應")
+    
+    # 根據 Intent 生成回應
+    ubichan_text, emotion = await _generate_ubichan_response(
+        intent=intent_result['intent'],
+        user_message=user_message,
+        target_location=intent_result.get('target_location')
+    )
+    
+    # 格式化 UbiChan 輸出
+    ubichan_output = formatter.format_ubichan_response(
+        text=ubichan_text,
+        emotion=emotion,
+        lang="tw"
+    )
+    
+    # ========== 階段 3: 生成豹小秘 Action（如果需要） ==========
+    print("🤖 階段 3: 生成豹小秘 Action")
+    
+    robot_action = None
+    robot_steps = None
+    
+    if intent_result['requires_robot']:
+        robot_action = action_gen.generate_from_intent(
+            intent=intent_result['intent'],
+            user_message=user_message
+        )
+        if robot_action:
+            robot_steps = robot_action.natural_language_steps
+            print(f"✅ 豹小秘 Action: {robot_action.action}")
+    
+    # ========== 階段 4: STREAM 發送 ==========
+    print("📡 階段 4: STREAM 發送")
+    
+    # 發送 UbiChan 回應
+    chunker = BlockChunker(min_chars=800, max_chars=1200)
+    
+    try:
+        # 發送完整 UbiChan 輸出（包含情緒標籤）
+        # 注意：這裡需要解析並逐句發送
+        sentences = formatter.extract_sentences(ubichan_output)
+        
+        for i, sentence in enumerate(sentences):
+            event = StreamEvent.create_text_chunk(
+                message=sentence + "<sbr>" if i < len(sentences) - 1 else sentence,
+                created=created,
+                event_id=event_id
+            )
+            yield format_sse_event(event)
+            await asyncio.sleep(0.1)  # 模擬逐句顯示
+        
+        # 如果有豹小秘 Action，發送 metadata
+        if robot_action:
+            # 可以在這裡添加 metadata 事件
+            print(f"📋 豹小秘 JSON: {json.dumps(robot_action.to_json(), ensure_ascii=False)}")
+            print(f"📝 豹小秘步驟：{robot_steps}")
+    
+    except Exception as e:
+        print(f"❌ STREAM 發送失敗：{e}")
+        event = StreamEvent.create_error(
+            error=str(e),
+            created=created,
+            event_id=event_id
+        )
+        yield format_sse_event(event)
+        return
+    
+    # ========== 階段 5: Done 事件 ==========
+    total_time = int((asyncio.get_event_loop().time() - start_time) * 1000)
+    
+    event = StreamEvent.create_done(
+        created=created,
+        event_id=event_id,
+        timing={
+            "intent_ms": intent_time,
+            "total_ms": total_time,
+            "robot_action": robot_action.action if robot_action else None
+        }
+    )
+    yield format_sse_event(event)
+    
+    # 保存對話到 Session
+    if request.session_id:
+        try:
+            # 保存用戶消息
+            session_store.add_message(request.session_id, "user", user_message)
+            
+            # 保存助手回應（包含 UbiChan 和豹小秘資訊）
+            assistant_response = {
+                "ubichan": ubichan_output,
+                "robot_action": robot_action.to_json() if robot_action else None,
+                "robot_steps": robot_steps
+            }
+            session_store.add_message(
+                request.session_id,
+                "assistant",
+                json.dumps(assistant_response, ensure_ascii=False)
+            )
+            print(f"✅ 已保存對話到 Session: {request.session_id}")
+        except Exception as e:
+            print(f"⚠️ 保存 Session 失敗：{e}")
+    
+    print(f"📊 Session: {request.session_id} | TIMING: total={total_time}ms")
+
+
+async def _generate_ubichan_response(
+    intent: str,
+    user_message: str,
+    target_location: Optional[str] = None
+) -> tuple[str, str]:
+    """
+    根據 Intent 生成 UbiChan 回應
+    
+    Args:
+        intent: Intent 類型
+        user_message: 用戶消息
+        target_location: 目標地點（可選）
+    
+    Returns:
+        (回應文字，情緒標籤)
+    """
+    # 醫療展專用回應模板
+    responses = {
+        "registration": (
+            "好的，豹小秘會帶你去掛號處。<sbr>請跟著它走。<sbr>",
+            "happy"
+        ),
+        "pharmacy": (
+            "你在這裡休息一下。<sbr>我請豹小秘去幫你拿藥。<sbr>很快就好。<sbr>",
+            "concerned"
+        ),
+        "cancel": (
+            "好的，我把豹小秘找回來。<sbr>請稍等一下。<sbr>",
+            "neutral"
+        ),
+        "info_location": (
+            f"{_get_location_name(target_location)}在{_get_location_area(target_location)}。<sbr>"
+            f"我請豹小秘帶你過去。<sbr>請跟著它走。<sbr>",
+            "happy"
+        ),
+        "info_other": (
+            "這個我需要查詢一下。<sbr>請稍等一下。<sbr>",
+            "thinking"
+        ),
+        "other": (
+            "抱歉，我不太理解您的需求。<sbr>請問您需要什麼協助？<sbr>",
+            "embarrassed"
+        )
+    }
+    
+    return responses.get(intent, responses["other"])
+
+
+def _get_location_name(location: Optional[str]) -> str:
+    """取得地點中文名稱"""
+    names = {
+        "counter": "櫃台",
+        "registration": "掛號處",
+        "pharmacy": "藥局"
+    }
+    return names.get(location, "那個地方")
+
+
+def _get_location_area(location: Optional[str]) -> str:
+    """取得地點展區描述"""
+    areas = {
+        "counter": "這裡",
+        "registration": "展場 A 區",
+        "pharmacy": "展場 B 區"
+    }
+    return areas.get(location, "展場")
+
+
+# ============= API 端點 =============
+
+@router.post("/sessions", response_model=CreateSessionResponse)
+async def create_session(request: CreateSessionRequest):
+    """
+    創建新 Session（綁定醫療展 persona_id）
+    
+    前端在開始對話前，先創建 Session 並綁定虛擬人。
+    使用 SQLite SessionStore 持久化存儲。
+    """
+    global config_loader
+    
+    # 驗證 persona_id
+    config = config_loader.get(request.persona_id)
+    if not config:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知的醫療展虛擬人 ID: {request.persona_id}"
+        )
+    
+    # 創建 Session
+    from session.session_store import get_session_store
+    session_store = get_session_store('/data/sessions.db')
+    
+    session = session_store.create_session(
+        prefix=request.persona_id,
+        metadata={
+            "vh_char_config": {
+                "persona_id": request.persona_id,
+                "character_version": config.get('version', 'v1.0'),
+                "spec": "MED_UBIAGENT"
+            }
+        },
+        ttl_hours=24
+    )
+    
+    return CreateSessionResponse(
+        session_id=session['session_id'],
+        persona_id=request.persona_id,
+        created_at=session['created_at']
+    )
+
+
+@router.post("/chat", response_model=None)
+async def chat(request: ChatRequest):
+    """
+    Chat 端點 - 醫療展 Virtual Human（STREAM 模式）
+    
+    流程:
+    1. 從 Session Store 取得 Session 內容
+    2. 從 metadata 獲取 vh_char_config
+    3. 取得 persona_id
+    4. 載入醫療展配置
+    5. 意圖分類
+    6. 生成 UbiChan 回應 + 豹小秘 Action
+    7. 返回 STREAM 回應
+    
+    Args:
+        request: ChatRequest
+    
+    Returns:
+        StreamingResponse: SSE 格式回應
+    """
+    global config_loader
+    
+    # 1. 從 Session Store 取得 Session 內容
+    try:
+        from session.session_store import get_session_store
+        session_store = get_session_store('/data/sessions.db')
+        session_data = session_store.get_session(request.session_id)
+        
+        if not session_data:
+            raise HTTPException(status_code=404, detail="Session 不存在")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Session 讀取失敗：{str(e)}")
+    
+    # 2. 從 metadata 獲取 vh_char_config
+    metadata = session_data.get('metadata')
+    vh_char_config = None
+    persona_id = None
+    
+    if metadata:
+        vh_char_config = metadata.get('vh_char_config')
+        if vh_char_config:
+            persona_id = vh_char_config.get('persona_id')
+    
+    # 3. 載入醫療展配置
+    if not persona_id or not persona_id.startswith('med_'):
+        raise HTTPException(
+            status_code=400,
+            detail="Session 未綁定醫療展虛擬人"
+        )
+    
+    config = config_loader.get(persona_id)
+    if not config:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知的醫療展虛擬人：{persona_id}"
+        )
+    
+    # 4. 添加用戶消息到 Session Store
+    user_message = request.get_message()
+    session_store.add_message(request.session_id, "user", user_message)
+    
+    # 5. 返回 STREAM 回應
+    return StreamingResponse(
+        generate_med_ubichan_stream(
+            request=request,
+            persona_config=config,
+            session_store=session_store
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+# ============= 初始化函數 =============
+
+def init_med_ubichan_api(
+    config_loader_obj: MedUbiConfigLoader,
+    llm_service_obj=None
+):
+    """
+    初始化醫療展 API
+    
+    在 Server 啟動時調用，注入依賴。
+    
+    Args:
+        config_loader_obj: 醫療展配置載入器
+        llm_service_obj: LLM 服務（可選）
+    """
+    global config_loader, formatter, action_gen, llm_service
+    
+    config_loader = config_loader_obj
+    formatter = MedUbiOutputFormatter()
+    action_gen = RobotActionGenerator()
+    llm_service = llm_service_obj
+    
+    print(f"✅ 醫療展 API 初始化完成")
+    print(f"   - 支持 persona: {config_loader.get_all_ids()}")
+    print(f"   - 支持地點：{RobotActionGenerator.LOCATIONS}")
+    print(f"   - 支持 Intent: registration, pharmacy, cancel, info_location")
