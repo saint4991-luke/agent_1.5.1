@@ -2,6 +2,7 @@
 
 # 在現有導入後添加：
 from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser
+from .llm_service import MedUbiLLMService, create_llm_service
 
 
 # ============= 新增全局變數 =============
@@ -10,6 +11,9 @@ from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser
 # Prompt 構建器和解析器
 prompt_builder: Optional[MedUbiPromptBuilder] = None
 output_parser: Optional[MedUbiOutputParser] = None
+
+# LLM 服務
+llm_service: Optional[MedUbiLLMService] = None
 
 
 # ============= 新增函數：使用 LLM 生成完整回應 =============
@@ -30,7 +34,7 @@ async def generate_response_with_llm(
     
     流程：
     1. 構建 Prompt
-    2. 調用 LLM
+    2. 調用 LLM（使用 MedUbiLLMService）
     3. 解析 LLM 輸出
     4. 驗證格式
     
@@ -70,31 +74,53 @@ async def generate_response_with_llm(
             is_llm1=is_llm1
         )
         
-        # 2. 調用 LLM
+        # 2. 調用 LLM（使用 MedUbiLLMService）
         print("🤖 調用 LLM...")
-        llm_response = await llm_service.chat_async(
-            messages=[
-                {"role": "system", "content": "你是一個醫療展 Virtual Human 助手，負責生成 UbiChan 和豹小秘的協作回應。"},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
-        )
         
-        # 3. 解析 LLM 輸出
-        print("🔍 解析 LLM 輸出...")
-        parsed_data = output_parser.parse_llm_response(llm_response)
+        if llm_service and hasattr(llm_service, 'generate_med_ubichan_response'):
+            # 使用醫療展專用方法
+            result = await llm_service.generate_med_ubichan_response(
+                prompt=prompt,
+                conversation_history=conversation_history,
+                temperature=0.7,
+                max_tokens=2048
+            )
+            
+            if not result['success']:
+                return {
+                    "success": False,
+                    "ubichan_output": None,
+                    "robot_steps": None,
+                    "robot_steps_descripts": None,
+                    "error": result['error']
+                }
+            
+            parsed_data = result['parsed']
+            llm_response = result['content']
+        else:
+            # 使用通用方法
+            llm_response = await llm_service.chat_async(
+                messages=[
+                    {"role": "system", "content": "你是一個醫療展 Virtual Human 助手，負責生成 UbiChan 和豹小秘的協作回應。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7
+            )
+            
+            # 解析 LLM 輸出
+            parsed_data = output_parser.parse_llm_response(llm_response)
+            
+            if not parsed_data["success"]:
+                print(f"❌ 解析失敗：{parsed_data['error']}")
+                return {
+                    "success": False,
+                    "ubichan_output": None,
+                    "robot_steps": None,
+                    "robot_steps_descripts": None,
+                    "error": parsed_data["error"]
+                }
         
-        if not parsed_data["success"]:
-            print(f"❌ 解析失敗：{parsed_data['error']}")
-            return {
-                "success": False,
-                "ubichan_output": None,
-                "robot_steps": None,
-                "robot_steps_descripts": None,
-                "error": parsed_data["error"]
-            }
-        
-        # 4. 驗證 UbiChan 格式
+        # 3. 驗證 UbiChan 格式
         ubichan_content = parsed_data["ToUbiChan"]
         is_valid, error_msg = output_parser.validate_ubichan_format(ubichan_content)
         if not is_valid:
@@ -107,7 +133,7 @@ async def generate_response_with_llm(
                 "error": f"UbiChan 格式錯誤：{error_msg}"
             }
         
-        # 5. 驗證 Steps 格式
+        # 4. 驗證 Steps 格式
         steps = parsed_data["ToBaxiaomi"].get("Steps")
         if steps:
             is_valid, error_msg = output_parser.validate_steps(steps)
@@ -309,7 +335,9 @@ async def generate_med_ubichan_stream(
 def init_med_ubichan_api(
     config_loader_obj: MedUbiConfigLoader,
     llm_service_obj=None,
-    workspace_path: Path = None
+    workspace_path: Path = None,
+    api_key: str = None,
+    model: str = "qwen3-8b-fp8"
 ):
     """
     初始化醫療展 API
@@ -318,15 +346,27 @@ def init_med_ubichan_api(
     
     Args:
         config_loader_obj: 醫療展配置載入器
-        llm_service_obj: LLM 服務（可選）
+        llm_service_obj: LLM 服務（可選，如果為 None 則自動創建）
         workspace_path: Workspace 路徑（可選）
+        api_key: UbiLM API Key（可選，從環境變數讀取）
+        model: LLM 模型名稱
     """
     global config_loader, formatter, action_gen, llm_service, prompt_builder, output_parser
     
     config_loader = config_loader_obj
     formatter = MedUbiOutputFormatter()
     action_gen = RobotActionGenerator()
-    llm_service = llm_service_obj
+    
+    # 初始化 LLM 服務
+    if llm_service_obj:
+        llm_service = llm_service_obj
+    elif workspace_path:
+        llm_service = create_llm_service(
+            api_key=api_key,
+            model=model,
+            workspace_path=workspace_path
+        )
+        print(f"✅ LLM 服務已初始化 (model={model})")
     
     # 初始化 Prompt 構建器和解析器
     if workspace_path:
@@ -338,4 +378,4 @@ def init_med_ubichan_api(
     print(f"   - 支持 persona: {config_loader.get_all_ids()}")
     print(f"   - 支持地點：{RobotActionGenerator.LOCATIONS}")
     print(f"   - 支持 Intent: registration, pharmacy, cancel, info_location")
-    print(f"   - LLM 生成模式：{'啟用' if prompt_builder else '未啟用'}")
+    print(f"   - LLM 生成模式：{'啟用' if (prompt_builder and llm_service) else '未啟用'}")
