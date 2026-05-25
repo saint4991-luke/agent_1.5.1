@@ -226,7 +226,7 @@ async def classify_intent(
     }
 
 
-# ============= 醫療展 Chat 生成器 =============
+# ============= 醫療展 Chat 生成器（LLM 整合版） =============
 
 async def generate_med_ubichan_stream(
     request: ChatRequest,
@@ -234,13 +234,12 @@ async def generate_med_ubichan_stream(
     session_store
 ):
     """
-    醫療展 Virtual Human STREAM 生成器
+    醫療展 Virtual Human STREAM 生成器（LLM 整合版）
     
     流程：
     1. 意圖分類
-    2. 生成 UbiChan 回應（情緒標籤格式）
-    3. 生成豹小秘 Action（如果需要）
-    4. STREAM 發送
+    2. 使用 LLM 生成完整回應（UbiChan + 豹小秘 Steps）
+    3. STREAM 發送
     
     Args:
         request: ChatRequest
@@ -250,7 +249,7 @@ async def generate_med_ubichan_stream(
     Yields:
         SSE 格式事件
     """
-    global formatter, action_gen, llm_service
+    global formatter, llm_service, prompt_builder, output_parser
     
     start_time = asyncio.get_event_loop().time()
     user_message = request.get_message()
@@ -268,99 +267,83 @@ async def generate_med_ubichan_stream(
     intent_time = int((time.time() - intent_start) * 1000)
     print(f"✅ 意圖：{intent_result['intent']} ({intent_time}ms)")
     
-    # ========== 階段 2: 生成 UbiChan 回應 ==========
-    print("📝 階段 2: 生成 UbiChan 回應")
+    # ========== 階段 2: 使用 LLM 生成完整回應 ==========
+    print("📝 階段 2: 使用 LLM 生成完整回應")
+    llm_start = time.time()
     
-    # 根據 Intent 生成回應
-    ubichan_text, emotion = await _generate_ubichan_response(
-        intent=intent_result['intent'],
+    # 獲取對話歷史
+    conversation_history = session_store.get_messages(request.session_id, limit=10)
+    
+    # 獲取知識庫內容（如果需要）
+    knowledge_content = None
+    knowledge_meta = None
+    # TODO: 根據 persona_config 載入知識庫
+    
+    # 調用 LLM 生成
+    llm_result = await generate_response_with_llm(
         user_message=user_message,
-        target_location=intent_result.get('target_location')
+        conversation_history=conversation_history,
+        persona_config=persona_config,
+        intent_result=intent_result,
+        workspace_path=prompt_builder.workspace_path if prompt_builder else None,
+        prompt_loader_obj=None,  # TODO: 注入 PromptLoader
+        knowledge_content=knowledge_content,
+        knowledge_meta=knowledge_meta,
+        is_llm1=False
     )
     
-    # 格式化 UbiChan 輸出
-    ubichan_output = formatter.format_ubichan_response(
-        text=ubichan_text,
-        emotion=emotion,
-        lang="tw"
-    )
+    llm_time = int((time.time() - llm_start) * 1000)
     
-    # ========== 階段 3: 生成豹小秘 Action（如果需要） ==========
-    print("🤖 階段 3: 生成豹小秘 Action")
-    
+    # ========== 階段 3: 處理 LLM 結果 ==========
     robot_action = None
-    robot_steps = None
     
-    if intent_result['requires_robot']:
-        robot_action = action_gen.generate_from_intent(
-            intent=intent_result['intent'],
-            user_message=user_message
-        )
-        if robot_action:
-            robot_steps = robot_action.natural_language_steps
-            print(f"✅ 豹小秘 Action: {robot_action.action}")
-    
-    # ========== 階段 4: STREAM 發送 ==========
-    print("📡 階段 4: STREAM 發送")
-    
-    # 發送 UbiChan 回應
-    chunker = BlockChunker(min_chars=800, max_chars=1200)
-    
-    try:
-        # 發送完整 UbiChan 輸出（包含情緒標籤）
-        # 注意：這裡需要解析並逐句發送
-        sentences = formatter.extract_sentences(ubichan_output)
+    if llm_result["success"]:
+        print(f"✅ LLM 生成成功 ({llm_time}ms)")
         
-        for i, sentence in enumerate(sentences):
-            event = StreamEvent.create_text_chunk(
-                message=sentence + "<sbr>" if i < len(sentences) - 1 else sentence,
-                created=created,
-                event_id=event_id
-            )
-            yield format_sse_event(event)
-            await asyncio.sleep(0.1)  # 模擬逐句顯示
+        ubichan_output = llm_result["ubichan_output"]
+        robot_steps = llm_result["robot_steps"]
+        robot_steps_desc = llm_result["robot_steps_descripts"]
         
-        # 如果有豹小秘 Action，發送 metadata
-        if robot_action:
-            # 可以在這裡添加 metadata 事件
-            print(f"📋 豹小秘 JSON: {json.dumps(robot_action.to_json(), ensure_ascii=False)}")
-            print(f"📝 豹小秘步驟：{robot_steps}")
-    
-    except Exception as e:
-        print(f"❌ STREAM 發送失敗：{e}")
-        event = StreamEvent.create_error(
-            error=str(e),
-            created=created,
-            event_id=event_id
-        )
-        yield format_sse_event(event)
-        return
-    
-    # ========== 階段 5: Done 事件 ==========
-    total_time = int((asyncio.get_event_loop().time() - start_time) * 1000)
-    
-    event = StreamEvent.create_done(
-        created=created,
-        event_id=event_id,
-        timing={
-            "intent_ms": intent_time,
-            "total_ms": total_time,
-            "robot_action": robot_action.action if robot_action else None
+        # 發送 UbiChan 回應
+        print(f"🦐 發送 UbiChan: {ubichan_output[:50]}...")
+        event = {
+            "id": f"{event_id}_ubichan",
+            "event": "ubichan_response",
+            "data": {
+                "session_id": request.session_id,
+                "text": ubichan_output,
+                "emotion": "neutral",  # 從輸出中提取
+                "lang": "tw",
+                "timing": {
+                    "intent_ms": intent_time,
+                    "llm_ms": llm_time
+                }
+            }
         }
-    )
-    yield format_sse_event(event)
-    
-    # 保存對話到 Session
-    if request.session_id:
+        yield format_sse_event(event)
+        
+        # 發送豹小秘 Steps（如果有）
+        if robot_steps:
+            print(f"🤖 發送豹小秘 Steps: {len(robot_steps)} 個步驟")
+            event = {
+                "id": f"{event_id}_robot",
+                "event": "robot_action",
+                "data": {
+                    "session_id": request.session_id,
+                    "steps": robot_steps,
+                    "steps_description": robot_steps_desc
+                }
+            }
+            yield format_sse_event(event)
+        
+        # 保存對話到 Session
         try:
-            # 保存用戶消息
             session_store.add_message(request.session_id, "user", user_message)
             
-            # 保存助手回應（包含 UbiChan 和豹小秘資訊）
             assistant_response = {
                 "ubichan": ubichan_output,
-                "robot_action": robot_action.to_json() if robot_action else None,
-                "robot_steps": robot_steps
+                "robot_steps": robot_steps,
+                "robot_steps_desc": robot_steps_desc
             }
             session_store.add_message(
                 request.session_id,
@@ -370,7 +353,62 @@ async def generate_med_ubichan_stream(
             print(f"✅ 已保存對話到 Session: {request.session_id}")
         except Exception as e:
             print(f"⚠️ 保存 Session 失敗：{e}")
+        
+    else:
+        # LLM 失敗，降級處理
+        print(f"⚠️ LLM 生成失敗：{llm_result['error']}，使用舊的模板生成方式")
+        
+        # 使用舊的模板生成方式（降級處理）
+        ubichan_text, emotion = await _generate_ubichan_response(
+            intent=intent_result['intent'],
+            user_message=user_message,
+            target_location=intent_result.get('target_location')
+        )
+        
+        ubichan_output = formatter.format_ubichan_response(
+            text=ubichan_text,
+            emotion=emotion,
+            lang="tw"
+        )
+        
+        # 發送 UbiChan 回應
+        event = {
+            "id": f"{event_id}_ubichan",
+            "event": "ubichan_response",
+            "data": {
+                "session_id": request.session_id,
+                "text": ubichan_output,
+                "emotion": emotion,
+                "lang": "tw",
+                "timing": {
+                    "intent_ms": intent_time,
+                    "llm_ms": llm_time,
+                    "fallback": True
+                }
+            }
+        }
+        yield format_sse_event(event)
+        
+        # 如果需要豹小秘，使用舊的 Action Generator
+        if intent_result['requires_robot']:
+            from .robot_action_generator import action_gen as default_action_gen
+            robot_action = default_action_gen.generate_from_intent(
+                intent=intent_result['intent'],
+                user_message=user_message
+            )
+            if robot_action:
+                event = {
+                    "id": f"{event_id}_robot",
+                    "event": "robot_action",
+                    "data": {
+                        "session_id": request.session_id,
+                        "action": robot_action.to_json()
+                    }
+                }
+                yield format_sse_event(event)
     
+    # 計算總時間
+    total_time = int((time.time() - start_time) * 1000)
     print(f"📊 Session: {request.session_id} | TIMING: total={total_time}ms")
 
 
