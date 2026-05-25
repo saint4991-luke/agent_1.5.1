@@ -8,8 +8,9 @@ API 端點 - 醫療展 Virtual Human Agent (UbiChan × 豹小秘)
 根據 MED_UBIAGENT 規格文檔 v1.0 實現
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, FastAPI
 from fastapi.responses import StreamingResponse
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -17,6 +18,7 @@ from pathlib import Path
 import asyncio
 import json
 import time
+import os
 
 # 流式模組
 import sys
@@ -97,9 +99,50 @@ output_parser: Optional[MedUbiOutputParser] = None
 # LLM 服務
 llm_service: Optional[MedUbiLLMService] = None
 
+# 配置載入器
+config_loader: Optional[MedUbiConfigLoader] = None
 
 
-# ============= 醫療展 Chat 生成器（純 LLM 版） =============
+# ============= Lifespan 上下文管理器 =============
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI 應用生命週期管理
+    
+    啟動時：初始化醫療展 API（LLM 服務、Prompt Builder 等）
+    關閉時：清理資源
+    """
+    # ===== 啟動時初始化 =====
+    print("🚀 初始化醫療展 Virtual Human API...")
+    
+    # 從環境變數讀取配置
+    workspace_path = Path(os.getenv("WORKSPACE_PATH", "/workspace"))
+    api_key = os.getenv("UBILM_API_KEY")
+    llm_model = os.getenv("UBILM_LLM_MODEL", "qwen3-8b-fp8")
+    
+    print(f"   Workspace: {workspace_path}")
+    print(f"   API Key: {'***' + api_key[-6:] if api_key else '未設置'}")
+    print(f"   LLM Model: {llm_model}")
+    
+    # 初始化配置載入器
+    config_loader_obj = MedUbiConfigLoader()
+    
+    # 初始化醫療展 API
+    init_med_ubichan_api(
+        config_loader_obj=config_loader_obj,
+        workspace_path=workspace_path,
+        api_key=api_key,
+        model=llm_model
+    )
+    
+    print("✅ 醫療展 Virtual Human API 初始化完成")
+    
+    yield
+    
+    # ===== 關閉時清理 =====
+    print("👋 關閉醫療展 Virtual Human API...")
+    # 如有需要清理的資源，在這裡處理
 
 async def generate_med_ubichan_stream(
     request: ChatRequest,
@@ -599,6 +642,20 @@ async def generate_response_with_llm(
             "error": str(e)
         }
 
+
+
+# ============= FastAPI 應用實例 =============
+
+# 創建 FastAPI 應用（帶 lifespan）
+app = FastAPI(
+    title="醫療展 Virtual Human API",
+    description="UbiChan × 豹小秘 雙機器人協作系統",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# 註冊 router
+app.include_router(router, prefix="/med_ubichan", tags=["med_ubichan"])
 
 
 # ============= 主程式入口 =============
