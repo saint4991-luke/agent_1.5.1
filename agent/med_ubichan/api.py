@@ -599,3 +599,34 @@ async def generate_response_with_llm(
             "error": str(e)
         }
 
+
+
+# ============= 主程式入口 =============
+
+if __name__ == "__main__":
+    import argparse
+    import uvicorn
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", type=str, default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=3007)
+    args = parser.parse_args()
+    
+    print(f"🚀 啟動醫療展 Virtual Human API 服務")
+    print(f"   Host: {args.host}")
+    print(f"   Port: {args.port}")
+    print(f"\n📖 API 端點:")
+    print(f"   POST /med_ubichan/create_session - 創建 Session")
+    print(f"   POST /med_ubichan/chat - Chat（STREAM 模式）")
+    print(f"\n🔧 測試指令:")
+    print(f"   # 創建 Session")
+    print(f"   curl -X POST http://localhost:{args.port}/med_ubichan/create_session \\")
+    print(f"     -H 'Content-Type: application/json' \\")
+    print(f"     -d '{{\"persona_id\": \"med-ubichan\"}}'")
+    print(f"\n   # Chat 測試")
+    print(f"   curl -X POST http://localhost:{args.port}/med_ubichan/chat \\")
+    print(f"     -H 'Content-Type: application/json' \\")
+    print(f"     -d '{{\"session_id\": \"<session_id>\", \"message\": \"掛號處在哪？\"}}'")
+    print(f"\n{'='*60}\n")
+    
+    uvicorn.run(app, host=args.host, port=args.port)
