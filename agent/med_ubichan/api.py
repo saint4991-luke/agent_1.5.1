@@ -99,134 +99,136 @@ llm_service: Optional[MedUbiLLMService] = None
 
 
 
-# ============= Intent 分類器 =============
+# ============= Intent 分類器（已棄用） =============
+# 註解：此函數已不再使用，LLM 會在 Prompt 中自行判斷意圖
+# 保留代碼供參考
 
-async def classify_intent(
-    user_message: str,
-    conversation_history: list = None
-) -> Dict[str, Any]:
-    """
-    分類用戶意圖（醫療展專用）
-    
-    根據 MED_UBIAGENT.md 規格，支持以下 Intent：
-    - registration: 掛號
-    - pharmacy: 拿藥
-    - cancel: 取消
-    - info_location: 地點詢問（主動帶路）
-    - info_other: 其他資訊
-    - other: 其他
-    
-    Args:
-        user_message: 用戶消息
-        conversation_history: 對話歷史（可選）
-    
-    Returns:
-        {
-            "intent": str,
-            "confidence": float,
-            "target_location": Optional[str],
-            "requires_robot": bool
-        }
-    """
-    global llm_service
-    
-    # 簡單的關鍵字匹配（快速路徑）
-    message_lower = user_message.lower()
-    
-    # 掛號
-    if any(kw in message_lower for kw in ['掛號', '登記', '報到', '我想去掛號']):
-        return {
-            "intent": "registration",
-            "confidence": 0.9,
-            "target_location": "registration",
-            "requires_robot": True
-        }
-    
-    # 拿藥
-    if any(kw in message_lower for kw in ['拿藥', '取藥', '藥品', '藥局']):
-        return {
-            "intent": "pharmacy",
-            "confidence": 0.9,
-            "target_location": "pharmacy",
-            "requires_robot": True
-        }
-    
-    # 取消
-    if any(kw in message_lower for kw in ['停止', '取消', '不要了', '請停止']):
-        return {
-            "intent": "cancel",
-            "confidence": 0.95,
-            "target_location": None,
-            "requires_robot": True
-        }
-    
-    # 地點詢問（主動帶路）
-    if any(kw in message_lower for kw in ['哪裡', '怎麼走', '在哪', '怎麼去']):
-        # 判斷目標地點
-        target = None
-        if any(kw in message_lower for kw in ['掛號', '登記']):
-            target = "registration"
-        elif any(kw in message_lower for kw in ['藥', '取藥']):
-            target = "pharmacy"
-        elif any(kw in message_lower for kw in ['櫃台', '服務台']):
-            target = "counter"
-        
-        if target:
-            return {
-                "intent": "info_location",
-                "confidence": 0.85,
-                "target_location": target,
-                "requires_robot": True  # 主動帶路
-            }
-    
-    # 使用 LLM 進行更精準的分類（如果關鍵字匹配失敗）
-    if llm_service:
-        try:
-            prompt = f"""你是一個醫療展意圖分類助手。請分類用戶的意圖。
+# async def classify_intent(
+#     user_message: str,
+#     conversation_history: list = None
+# ) -> Dict[str, Any]:
+#     """
+#     分類用戶意圖（醫療展專用）
+#     
+#     根據 MED_UBIAGENT.md 規格，支持以下 Intent：
+#     - registration: 掛號
+#     - pharmacy: 拿藥
+#     - cancel: 取消
+#     - info_location: 地點詢問（主動帶路）
+#     - info_other: 其他資訊
+#     - other: 其他
+#     
+#     Args:
+#         user_message: 用戶消息
+#         conversation_history: 對話歷史（可選）
+#     
+#     Returns:
+#         {
+#             "intent": str,
+#             "confidence": float,
+#             "target_location": Optional[str],
+#             "requires_robot": bool
+#         }
+#     """
+#     global llm_service
+#     
+#     # 簡單的關鍵字匹配（快速路徑）
+#     message_lower = user_message.lower()
+#     
+#     # 掛號
+#     if any(kw in message_lower for kw in ['掛號', '登記', '報到', '我想去掛號']):
+#         return {
+#             "intent": "registration",
+#             "confidence": 0.9,
+#             "target_location": "registration",
+#             "requires_robot": True
+#         }
+#     
+#     # 拿藥
+#     if any(kw in message_lower for kw in ['拿藥', '取藥', '藥品', '藥局']):
+#         return {
+#             "intent": "pharmacy",
+#             "confidence": 0.9,
+#             "target_location": "pharmacy",
+#             "requires_robot": True
+#         }
+#     
+#     # 取消
+#     if any(kw in message_lower for kw in ['停止', '取消', '不要了', '請停止']):
+#         return {
+#             "intent": "cancel",
+#             "confidence": 0.95,
+#             "target_location": None,
+#             "requires_robot": True
+#         }
+#     
+#     # 地點詢問（主動帶路）
+#     if any(kw in message_lower for kw in ['哪裡', '怎麼走', '在哪', '怎麼去']):
+#         # 判斷目標地點
+#         target = None
+#         if any(kw in message_lower for kw in ['掛號', '登記']):
+#             target = "registration"
+#         elif any(kw in message_lower for kw in ['藥', '取藥']):
+#             target = "pharmacy"
+#         elif any(kw in message_lower for kw in ['櫃台', '服務台']):
+#             target = "counter"
+#         
+#         if target:
+#             return {
+#                 "intent": "info_location",
+#                 "confidence": 0.85,
+#                 "target_location": target,
+#                 "requires_robot": True  # 主動帶路
+#             }
+#     
+#     # 使用 LLM 進行更精準的分類（如果關鍵字匹配失敗）
+#     if llm_service:
+#         try:
+#             prompt = f"""你是一個醫療展意圖分類助手。請分類用戶的意圖。
+# 
+# 支持的意圖：
+# - registration: 掛號、登記、報到
+# - pharmacy: 拿藥、取藥、藥品
+# - cancel: 停止、取消
+# - info_location: 詢問地點（哪裡、怎麼走）
+# - info_other: 其他資訊詢問
+# - other: 其他
+# 
+# 用戶消息：{user_message}
+# 
+# 請只返回 JSON 格式：
+# {{
+#     "intent": "意圖名稱",
+#     "confidence": 0.9,
+#     "target_location": "地點 ID 或 null",
+#     "requires_robot": true/false
+# }}
+# """
+#             llm_response = await llm_service.chat_async(
+#                 messages=[
+#                     {"role": "system", "content": "你是一個意圖分類助手。"},
+#                     {"role": "user", "content": prompt}
+#                 ],
+#                 temperature=0
+#             )
+#             
+#             # 解析 LLM 回應
+#             result = json.loads(llm_response)
+#             return result
+#         
+#         except Exception as e:
+#             print(f"⚠️ LLM 意圖分類失敗：{e}，使用關鍵字匹配")
+#     
+#     # 預設：其他
+#     return {
+#         "intent": "other",
+#         "confidence": 0.5,
+#         "target_location": None,
+#         "requires_robot": False
+#     }
 
-支持的意圖：
-- registration: 掛號、登記、報到
-- pharmacy: 拿藥、取藥、藥品
-- cancel: 停止、取消
-- info_location: 詢問地點（哪裡、怎麼走）
-- info_other: 其他資訊詢問
-- other: 其他
 
-用戶消息：{user_message}
-
-請只返回 JSON 格式：
-{{
-    "intent": "意圖名稱",
-    "confidence": 0.9,
-    "target_location": "地點 ID 或 null",
-    "requires_robot": true/false
-}}
-"""
-            llm_response = await llm_service.chat_async(
-                messages=[
-                    {"role": "system", "content": "你是一個意圖分類助手。"},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0
-            )
-            
-            # 解析 LLM 回應
-            result = json.loads(llm_response)
-            return result
-        
-        except Exception as e:
-            print(f"⚠️ LLM 意圖分類失敗：{e}，使用關鍵字匹配")
-    
-    # 預設：其他
-    return {
-        "intent": "other",
-        "confidence": 0.5,
-        "target_location": None,
-        "requires_robot": False
-    }
-
-
-# ============= 醫療展 Chat 生成器（LLM 整合版） =============
+# ============= 醫療展 Chat 生成器（純 LLM 版） =============
 
 async def generate_med_ubichan_stream(
     request: ChatRequest,
@@ -234,12 +236,11 @@ async def generate_med_ubichan_stream(
     session_store
 ):
     """
-    醫療展 Virtual Human STREAM 生成器（LLM 整合版）
+    醫療展 Virtual Human STREAM 生成器（純 LLM 版）
     
     流程：
-    1. 意圖分類
-    2. 使用 LLM 生成完整回應（UbiChan + 豹小秘 Steps）
-    3. STREAM 發送
+    1. 使用 LLM 生成完整回應（UbiChan + 豹小秘 Steps）
+    2. STREAM 發送
     
     Args:
         request: ChatRequest
@@ -249,7 +250,7 @@ async def generate_med_ubichan_stream(
     Yields:
         SSE 格式事件
     """
-    global formatter, llm_service, prompt_builder, output_parser
+    global prompt_builder
     
     start_time = asyncio.get_event_loop().time()
     user_message = request.get_message()
@@ -258,17 +259,8 @@ async def generate_med_ubichan_stream(
     created = int(start_time)
     event_id = f"{request.session_id}_{created}"
     
-    # ========== 階段 1: 意圖分類 ==========
-    print("🔍 階段 1: 意圖分類")
-    intent_start = time.time()
-    
-    intent_result = await classify_intent(user_message)
-    
-    intent_time = int((time.time() - intent_start) * 1000)
-    print(f"✅ 意圖：{intent_result['intent']} ({intent_time}ms)")
-    
-    # ========== 階段 2: 使用 LLM 生成完整回應 ==========
-    print("📝 階段 2: 使用 LLM 生成完整回應")
+    # ========== 階段 1: 使用 LLM 生成完整回應 ==========
+    print("📝 階段 1: 使用 LLM 生成完整回應")
     llm_start = time.time()
     
     # 獲取對話歷史
@@ -279,12 +271,12 @@ async def generate_med_ubichan_stream(
     knowledge_meta = None
     # TODO: 根據 persona_config 載入知識庫
     
-    # 調用 LLM 生成
+    # 調用 LLM 生成（不傳 intent_result，讓 LLM 自行判斷）
     llm_result = await generate_response_with_llm(
         user_message=user_message,
         conversation_history=conversation_history,
         persona_config=persona_config,
-        intent_result=intent_result,
+        intent_result=None,  # 讓 LLM 自行判斷意圖
         workspace_path=prompt_builder.workspace_path if prompt_builder else None,
         prompt_loader_obj=None,  # TODO: 注入 PromptLoader
         knowledge_content=knowledge_content,
@@ -294,118 +286,75 @@ async def generate_med_ubichan_stream(
     
     llm_time = int((time.time() - llm_start) * 1000)
     
-    # ========== 階段 3: 處理 LLM 結果 ==========
-    robot_action = None
+    # ========== 階段 2: 處理 LLM 結果 ==========
+    if not llm_result["success"]:
+        print(f"❌ LLM 生成失敗：{llm_result['error']}")
+        # 直接返回錯誤
+        event = {
+            "id": f"{event_id}_error",
+            "event": "error",
+            "data": {
+                "session_id": request.session_id,
+                "error": llm_result['error']
+            }
+        }
+        yield format_sse_event(event)
+        return
     
-    if llm_result["success"]:
-        print(f"✅ LLM 生成成功 ({llm_time}ms)")
-        
-        ubichan_output = llm_result["ubichan_output"]
-        robot_steps = llm_result["robot_steps"]
-        robot_steps_desc = llm_result["robot_steps_descripts"]
-        
-        # 發送 UbiChan 回應
-        print(f"🦐 發送 UbiChan: {ubichan_output[:50]}...")
+    print(f"✅ LLM 生成成功 ({llm_time}ms)")
+    
+    ubichan_output = llm_result["ubichan_output"]
+    robot_steps = llm_result["robot_steps"]
+    robot_steps_desc = llm_result["robot_steps_descripts"]
+    
+    # 發送 UbiChan 回應
+    print(f"🦐 發送 UbiChan: {ubichan_output[:50]}...")
+    event = {
+        "id": f"{event_id}_ubichan",
+        "event": "ubichan_response",
+        "data": {
+            "session_id": request.session_id,
+            "text": ubichan_output,
+            "emotion": "neutral",
+            "lang": "tw",
+            "timing": {
+                "llm_ms": llm_time
+            }
+        }
+    }
+    yield format_sse_event(event)
+    
+    # 發送豹小秘 Steps（如果有）
+    if robot_steps:
+        print(f"🤖 發送豹小秘 Steps: {len(robot_steps)} 個步驟")
         event = {
-            "id": f"{event_id}_ubichan",
-            "event": "ubichan_response",
+            "id": f"{event_id}_robot",
+            "event": "robot_action",
             "data": {
                 "session_id": request.session_id,
-                "text": ubichan_output,
-                "emotion": "neutral",  # 從輸出中提取
-                "lang": "tw",
-                "timing": {
-                    "intent_ms": intent_time,
-                    "llm_ms": llm_time
-                }
+                "steps": robot_steps,
+                "steps_description": robot_steps_desc
             }
         }
         yield format_sse_event(event)
+    
+    # 保存對話到 Session
+    try:
+        session_store.add_message(request.session_id, "user", user_message)
         
-        # 發送豹小秘 Steps（如果有）
-        if robot_steps:
-            print(f"🤖 發送豹小秘 Steps: {len(robot_steps)} 個步驟")
-            event = {
-                "id": f"{event_id}_robot",
-                "event": "robot_action",
-                "data": {
-                    "session_id": request.session_id,
-                    "steps": robot_steps,
-                    "steps_description": robot_steps_desc
-                }
-            }
-            yield format_sse_event(event)
-        
-        # 保存對話到 Session
-        try:
-            session_store.add_message(request.session_id, "user", user_message)
-            
-            assistant_response = {
-                "ubichan": ubichan_output,
-                "robot_steps": robot_steps,
-                "robot_steps_desc": robot_steps_desc
-            }
-            session_store.add_message(
-                request.session_id,
-                "assistant",
-                json.dumps(assistant_response, ensure_ascii=False)
-            )
-            print(f"✅ 已保存對話到 Session: {request.session_id}")
-        except Exception as e:
-            print(f"⚠️ 保存 Session 失敗：{e}")
-        
-    else:
-        # LLM 失敗，降級處理
-        print(f"⚠️ LLM 生成失敗：{llm_result['error']}，使用舊的模板生成方式")
-        
-        # 使用舊的模板生成方式（降級處理）
-        ubichan_text, emotion = await _generate_ubichan_response(
-            intent=intent_result['intent'],
-            user_message=user_message,
-            target_location=intent_result.get('target_location')
-        )
-        
-        ubichan_output = formatter.format_ubichan_response(
-            text=ubichan_text,
-            emotion=emotion,
-            lang="tw"
-        )
-        
-        # 發送 UbiChan 回應
-        event = {
-            "id": f"{event_id}_ubichan",
-            "event": "ubichan_response",
-            "data": {
-                "session_id": request.session_id,
-                "text": ubichan_output,
-                "emotion": emotion,
-                "lang": "tw",
-                "timing": {
-                    "intent_ms": intent_time,
-                    "llm_ms": llm_time,
-                    "fallback": True
-                }
-            }
+        assistant_response = {
+            "ubichan": ubichan_output,
+            "robot_steps": robot_steps,
+            "robot_steps_desc": robot_steps_desc
         }
-        yield format_sse_event(event)
-        
-        # 如果需要豹小秘，使用舊的 Action Generator
-        if intent_result['requires_robot']:
-            from .robot_action_generator import action_gen as default_action_gen
-            robot_action = default_action_gen.generate_from_intent(
-                intent=intent_result['intent'],
-                user_message=user_message
-            )
-            if robot_action:
-                event = {
-                    "id": f"{event_id}_robot",
-                    "event": "robot_action",
-                    "data": {
-                        "session_id": request.session_id,
-                        "action": robot_action.to_json()
-                    }
-                }
-                yield format_sse_event(event)
+        session_store.add_message(
+            request.session_id,
+            "assistant",
+            json.dumps(assistant_response, ensure_ascii=False)
+        )
+        print(f"✅ 已保存對話到 Session: {request.session_id}")
+    except Exception as e:
+        print(f"⚠️ 保存 Session 失敗：{e}")
     
     # 計算總時間
     total_time = int((time.time() - start_time) * 1000)
