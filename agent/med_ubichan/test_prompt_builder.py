@@ -19,20 +19,65 @@ from med_ubichan.prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser
 async def test_prompt_builder():
     """測試 Prompt 構建器"""
     print("=" * 60)
-    print("測試 Prompt Builder")
+    print("🦐 醫療展 Prompt Builder & Output Parser 測試")
     print("=" * 60)
     
-    # 初始化
-    workspace_path = Path("/tmp/agent_repo")
+    # 初始化 - 使用正確的 workspace 路徑
+    # 假設結構：/home/lukeliu/work/agent_1.5.1/workspace/
+    workspace_path = Path(__file__).parent.parent.parent / 'workspace'
+    
+    print(f"\n📂 Workspace: {workspace_path}")
+    print(f"📂 Workspace 存在：{workspace_path.exists()}")
+    
+    # 檢查 personas 目錄
+    personas_path = workspace_path / 'personas'
+    print(f"📂 Personas: {personas_path}")
+    print(f"📂 Personas 存在：{personas_path.exists()}")
+    
+    if personas_path.exists():
+        print(f"📁 Personas 內容：{list(personas_path.iterdir())}")
+    
+    # 檢查 MED_UBIAGENT 目錄
+    med_ubiagent_path = personas_path / 'MED_UBIAGENT'
+    print(f"\n📂 MED_UBIAGENT: {med_ubiagent_path}")
+    print(f"📂 MED_UBIAGENT 存在：{med_ubiagent_path.exists()}")
+    
+    if med_ubiagent_path.exists():
+        config_path = med_ubiagent_path / 'config.yaml'
+        style_path = med_ubiagent_path / 'style.md'
+        print(f"📄 config.yaml: {config_path.exists()}")
+        print(f"📄 style.md: {style_path.exists()}")
+    
     builder = MedUbiPromptBuilder(workspace_path)
     
-    # 測試配置
-    config = {
-        "persona_id": "med_ubichan_v1",
-        "style": {"file": "style.md"},
-        "output_format": "med_ubichan",
-        "version": "v1.0"
-    }
+    # 載入實際的 config.yaml
+    try:
+        import yaml
+        config_path = med_ubiagent_path / 'config.yaml'
+        
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            print(f"\n✅ 已載入 config.yaml")
+            print(f"   persona_id: {config.get('persona_id')}")
+            print(f"   output_format: {config.get('output_format')}")
+        else:
+            # 使用預設配置
+            config = {
+                "persona_id": "med-ubichan",
+                "style": {"file": "style.md"},
+                "output_format": "virtual_human",
+                "version": "1.0"
+            }
+            print(f"\n⚠️ 使用預設配置")
+    except Exception as e:
+        print(f"\n⚠️ 載入 config.yaml 失敗：{e}")
+        config = {
+            "persona_id": "med-ubichan",
+            "style": {"file": "style.md"},
+            "output_format": "virtual_human",
+            "version": "1.0"
+        }
     
     # 測試用戶消息
     user_message = "掛號處在哪？"
@@ -57,8 +102,11 @@ async def test_prompt_builder():
     
     prompt_loader = MockPromptLoader()
     
-    # 構建 Prompt
-    print("\n📝 構建 Prompt...")
+    # 構建 Prompt - 傳入 persona_config_path
+    print(f"\n📝 構建 Prompt...")
+    config_path = med_ubiagent_path / 'config.yaml' if med_ubiagent_path.exists() else None
+    print(f"   persona_config_path: {config_path}")
+    
     prompt, emotion_enabled = await builder._build_prompt(
         config=config,
         user_message=user_message,
@@ -67,7 +115,8 @@ async def test_prompt_builder():
         knowledge_content="醫療展場地資訊：櫃台在入口處，掛號處在 A 區，藥局在 B 區。",
         knowledge_meta="醫療展 Meta 資訊",
         intent_result=intent_result,
-        is_llm1=False
+        is_llm1=False,
+        persona_config_path=config_path
     )
     
     print(f"✅ emotion_enabled: {emotion_enabled}")

@@ -40,7 +40,8 @@ class MedUbiPromptBuilder:
         knowledge_content: str = None,
         knowledge_meta: str = None,
         intent_result: Optional[Dict[str, Any]] = None,
-        is_llm1: bool = False
+        is_llm1: bool = False,
+        persona_config_path: Optional[Path] = None
     ) -> Tuple[str, bool]:
         """
         組合完整的 Prompt（6 部分結構）
@@ -56,10 +57,10 @@ class MedUbiPromptBuilder:
         Args:
             config: Persona 配置（YAML v2.0 結構）
                 {
-                    "persona_id": "med_ubichan_v1",
+                    "persona_id": "med-ubichan",
                     "style": {"file": "style.md"},
-                    "output_format": "med_ubichan",
-                    "version": "v1.0"
+                    "output_format": "virtual_human",
+                    "version": "1.0"
                 }
             user_message: 用戶問題
             conversation_history: 對話歷史 [{"role": "user", "content": "..."}, ...]
@@ -73,14 +74,23 @@ class MedUbiPromptBuilder:
                     "requires_robot": True
                 }
             is_llm1: 是否為 LLM1 使用
+            persona_config_path: config.yaml 的路徑（可選，用於確定風格文件位置）
+                如果未提供，則使用 personas/{persona_id}/ 路徑
         
         Returns:
             (prompt, emotion_enabled)
         """
         # 1. 載入角色風格
         style_file = config.get('style', {}).get('file', 'style.md')
-        persona_id = config.get('persona_id', 'med_ubichan_v1')
-        style_path = self.workspace_path / 'personas' / persona_id / style_file
+        persona_id = config.get('persona_id', 'med-ubichan')
+        
+        # 優先使用 persona_config_path 確定風格文件位置
+        if persona_config_path:
+            # 風格文件與 config.yaml 在同一目錄
+            style_path = persona_config_path.parent / style_file
+        else:
+            # 向後兼容：使用 personas/{persona_id}/ 路徑
+            style_path = self.workspace_path / 'personas' / persona_id / style_file
         
         if style_path.exists():
             style_content = style_path.read_text(encoding='utf-8')
