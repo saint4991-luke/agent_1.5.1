@@ -16,14 +16,27 @@ from pathlib import Path
 import os
 
 
+# ===========================================
+# 環境變數配置
+# ===========================================
+
+UBILM_GRANT_URL = os.getenv("UBILM_GRANT_URL", "https://sage.ubitus.ai/ubillm/api/v1/resource/grant")
+UBILM_API_KEY = os.getenv("UBILM_API_KEY", "I3ksbLteZrRQHgs7HIvT4TTWmF63ZLFWwcTtZt6J1PE")
+UBILM_MODEL = os.getenv("UBILM_LLM_MODEL", "qwen3-8b-fp8")
+
+
+# ===========================================
+# UbiLLM Service
+# ===========================================
+
 class UbiLLMService:
     """UbiLLM 服務"""
     
     def __init__(
         self,
-        grant_url: str = "https://sage.ubitus.ai/ubillm/api/v1/resource/grant",
+        grant_url: str = None,
         api_key: str = None,
-        model: str = "qwen3-8b-fp8"
+        model: str = None
     ):
         """
         初始化 UbiLLM 服務
@@ -33,9 +46,9 @@ class UbiLLMService:
             api_key: UbiLM API Key（從環境變數或配置讀取）
             model: LLM 模型名稱
         """
-        self.grant_url = grant_url
-        self.api_key = api_key or os.getenv("UBILM_API_KEY")
-        self.model = model
+        self.grant_url = grant_url or UBILM_GRANT_URL
+        self.api_key = api_key or UBILM_API_KEY
+        self.model = model or UBILM_MODEL
         
         # 快取的 token 和 endpoint
         self._api_token: Optional[str] = None
@@ -258,9 +271,9 @@ class MedUbiLLMService(UbiLLMService):
     
     def __init__(
         self,
-        grant_url: str = "https://sage.ubitus.ai/ubillm/api/v1/resource/grant",
+        grant_url: str = None,
         api_key: str = None,
-        model: str = "qwen3-8b-fp8",
+        model: str = None,
         workspace_path: Path = None
     ):
         """
@@ -343,7 +356,7 @@ class MedUbiLLMService(UbiLLMService):
 # 工廠函數
 def create_llm_service(
     api_key: str = None,
-    model: str = "qwen3-8b-fp8",
+    model: str = None,
     workspace_path: Path = None
 ) -> MedUbiLLMService:
     """
