@@ -183,7 +183,7 @@ async def generate_med_ubichan_stream(
     llm_start = time.time()
     
     # 獲取對話歷史
-    conversation_history = session_store.get_messages(request.session_id, limit=10)
+    conversation_history = session_store.get_messages(request.session_id)
     
     # 獲取知識庫內容（如果需要）
     knowledge_content = None
