@@ -29,9 +29,10 @@ style:
 # -------------------------------------------
 # 輸出格式
 # -------------------------------------------
+# med_ubichan: 醫療展專用 JSON 格式（ToUbiChan + ToBaxiaomi）
 # virtual_human: 情緒標籤 + 語言標籤 + 斷句符號（用於前端表演）
 # chat: 一般文字回應，無特殊格式（用於純文字對話）
-output_format: virtual_human
+output_format: med_ubichan
 
 # -------------------------------------------
 # 醫療展專用配置

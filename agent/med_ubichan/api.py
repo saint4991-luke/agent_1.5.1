@@ -348,7 +348,7 @@ def _get_location_area(location: Optional[str]) -> str:
 
 # ============= API 端點 =============
 
-@router.post("/sessions", response_model=CreateSessionResponse)
+@router.post("/session", response_model=CreateSessionResponse)
 async def create_session(request: CreateSessionRequest):
     """
     創建新 Session（綁定醫療展 persona_id）
