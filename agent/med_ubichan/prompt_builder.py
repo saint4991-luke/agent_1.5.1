@@ -19,6 +19,118 @@ import json
 import re
 
 
+# ===========================================
+# PromptLoader - 輸出提示詞模板管理
+# ===========================================
+
+class PromptLoader:
+    """醫療展 Prompt 載入器"""
+    
+    def __init__(self, workspace_path: Path):
+        """
+        初始化 PromptLoader
+        
+        Args:
+            workspace_path: Workspace 根目錄路徑
+        """
+        self.workspace_path = Path(workspace_path)
+        self.prompts_path = self.workspace_path / 'agent' / 'shared' / 'prompts' / 'med_ubichan'
+        self._cache: Dict[str, str] = {}
+    
+    def load_prompt(self, output_format: str) -> str:
+        """
+        載入輸出提示詞模板
+        
+        Args:
+            output_format: 輸出格式（med_ubichan | plain | markdown）
+        
+        Returns:
+            提示詞模板內容
+        """
+        # 檢查快取
+        if output_format in self._cache:
+            return self._cache[output_format]
+        
+        # 根據 output_format 選擇提示詞文件
+        if output_format == 'med_ubichan':
+            prompt_file = self.prompts_path / "med_ubichan-output.md"
+        elif output_format == 'plain':
+            prompt_file = self.prompts_path / "plain-output.md"
+        elif output_format == 'markdown':
+            prompt_file = self.prompts_path / "markdown-output.md"
+        else:
+            print(f"⚠️  未知的 output_format: {output_format}，使用預設")
+            return "一般文字回應，無需情緒標籤"
+        
+        # 檢查文件是否存在
+        if not prompt_file.exists():
+            print(f"⚠️  提示詞文件不存在：{prompt_file}")
+            return "一般文字回應，無需情緒標籤"
+        
+        # 讀取文件
+        try:
+            with open(prompt_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 存入快取
+            self._cache[output_format] = content
+            print(f"✅ 載入提示詞模板：{output_format} ({len(content)} 字)")
+            return content
+        
+        except Exception as e:
+            print(f"⚠️  讀取提示詞文件失敗：{e}")
+            return "一般文字回應，無需情緒標籤"
+    
+    def load_prompt_for_llm1(self, output_format: str, config: Dict = None) -> str:
+        """
+        為 LLM1 載入提示詞模板（完整版，但 LLM1 只關注 language + 斷句）
+        
+        Args:
+            output_format: 輸出格式
+            config: Persona 配置（可選，用於獲取 quick_response 配置）
+        
+        Returns:
+            提示詞模板內容（完整版）
+        """
+        # 從 config 獲取快速回應長度
+        max_length = 20  # 預設
+        if config and 'quick_response' in config:
+            max_length = config['quick_response'].get('max_length', 20)
+        
+        # 載入基礎提示詞
+        base_prompt = self.load_prompt(output_format)
+        
+        # 添加快速回應長度限制
+        length_instruction = f"""
+
+# 快速回應長度限制
+**嚴格遵守：快速回應只能一句話，不超過 {max_length}個字**
+"""
+        return base_prompt + length_instruction
+    
+    def load_prompt_for_llm2(self, output_format: str) -> str:
+        """
+        為 LLM2 載入提示詞模板（完整版，含 emotion）
+        
+        Args:
+            output_format: 輸出格式
+        
+        Returns:
+            提示詞模板內容（完整版）
+        """
+        # LLM2 使用完整版提示詞模板
+        return self.load_prompt(output_format)
+    
+    def clear_cache(self):
+        """清空快取（用於開發環境重新載入）"""
+        self._cache.clear()
+        print("🔄 已清空提示詞快取")
+
+
+# ===========================================
+# MedUbiPromptBuilder - 醫療展 Prompt 構建器
+# ===========================================
+
 class MedUbiPromptBuilder:
     """醫療展 Prompt 構建器"""
     
@@ -139,31 +251,6 @@ class MedUbiPromptBuilder:
 
 # 輸出規格
 {prompt_content}
-
-請按照以下 JSON 格式輸出：
-```json
-{{
-    "ToUbiChan": "<情緒標籤><語言標籤>內容<sbr>...",
-    "ToBaxiaomi": {{
-        "Steps": [
-            {{
-                "action": "action_name",
-                "params": {{
-                    "key": "value"
-                }},
-                "speech": "語音內容或空字符串"
-            }}
-        ],
-        "Steps_Descripts": "自然語言步驟描述"
-    }}
-}}
-```
-
-注意：
-- ToUbiChan 必須包含情緒標籤（<neutral>, <happy>, <concerned> 等）和語言標籤（<tw>, <cn>）
-- ToUbiChan 的內容必須使用 <sbr> 進行斷句
-- ToBaxiaomi.Steps 必須是數組，每個步驟包含 action、params、speech
-- ToBaxiaomi.Steps_Descripts 必須是自然語言描述的步驟說明
 
 # 知識庫內容
 {knowledge_section}

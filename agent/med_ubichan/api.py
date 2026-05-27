@@ -34,10 +34,8 @@ from .config_loader import MedUbiConfigLoader
 from .output_formatter import MedUbiOutputFormatter
 from .robot_action_generator import RobotActionGenerator, RobotAction
 # Prompt Builder 和 LLM Service
-from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser
+from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser, PromptLoader
 from .llm_service import MedUbiLLMService, create_llm_service
-# Prompt Loader
-from prompt.prompt_loader import PromptLoader
 
 
 # 這些會在 agent-api-streaming.py 中初始化
