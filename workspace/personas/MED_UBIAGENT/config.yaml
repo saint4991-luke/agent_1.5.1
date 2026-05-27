@@ -3,16 +3,16 @@
 # ===========================================
 # 說明：醫療展場景服務虛擬人
 # 維護者：Luke Liu
-# 最後更新：2026-05-20
+# 最後更新：2026-05-27
 # 規格：specs/prompt-generation-spec.md v2.1
 # ===========================================
 
 # -------------------------------------------
 # 基本設定
 # -------------------------------------------
-# persona_id: 角色唯一識別（小寫英文，用於 Session ID 前綴）
+# persona_id: 角色唯一識別（小寫英文 + 底線，用於 Session ID 前綴）
 # display_name: 顯示名稱（人類可讀）
-persona_id: med-ubichan
+persona_id: med_ubichan
 display_name: 醫療展 UbiChan
 
 # -------------------------------------------
@@ -32,6 +32,34 @@ style:
 # virtual_human: 情緒標籤 + 語言標籤 + 斷句符號（用於前端表演）
 # chat: 一般文字回應，無特殊格式（用於純文字對話）
 output_format: virtual_human
+
+# -------------------------------------------
+# 醫療展專用配置
+# -------------------------------------------
+# locations: 支持的地點列表
+# intent_mapping: 意圖分類映射（關鍵字 → Action）
+med_expo:
+  locations:
+    - counter
+    - registration
+    - pharmacy
+  
+  intent_mapping:
+    registration:
+      keywords: ["掛號", "登記", "報到", "签到"]
+      action: navigate
+      target: registration
+    pharmacy:
+      keywords: ["拿藥", "取藥", "藥品", "药房"]
+      action: pickup_item
+      location: pharmacy
+    cancel:
+      keywords: ["停止", "取消", "不要了", "算了"]
+      action: cancel
+    info_location:
+      keywords: ["哪裡", "怎麼走", "在哪", "请问", "怎么走"]
+      action: navigate
+      target: auto  # 根據地點自動判斷
 
 # -------------------------------------------
 # 知識庫設定
@@ -75,6 +103,7 @@ metadata:
   company: "UbiBOS"
   target_audience: "醫療展來賓"
   tone: "professional, warm, helpful"
+  spec: "MED_UBIAGENT"
 
 # ===========================================
 # 使用說明
