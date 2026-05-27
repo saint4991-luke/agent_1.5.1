@@ -34,7 +34,8 @@ class PromptLoader:
             workspace_path: Workspace 根目錄路徑
         """
         self.workspace_path = Path(workspace_path)
-        self.prompts_path = self.workspace_path / 'agent' / 'shared' / 'prompts' / 'med_ubichan'
+        project_root = self.workspace_path.parent
+        self.prompts_path = project_root / 'agent' / 'shared' / 'prompts' / 'med_ubichan'
         self._cache: Dict[str, str] = {}
     
     def load_prompt(self, output_format: str) -> str:
