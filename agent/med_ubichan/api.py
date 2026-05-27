@@ -36,6 +36,8 @@ from .robot_action_generator import RobotActionGenerator, RobotAction
 # Prompt Builder 和 LLM Service
 from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser
 from .llm_service import MedUbiLLMService, create_llm_service
+# Prompt Loader
+from prompt.prompt_loader import PromptLoader
 
 
 # 這些會在 agent-api-streaming.py 中初始化
@@ -101,6 +103,9 @@ llm_service: Optional[MedUbiLLMService] = None
 
 # 配置載入器
 config_loader: Optional[MedUbiConfigLoader] = None
+
+# Prompt Loader
+prompt_loader: Optional[PromptLoader] = None
 
 
 # ============= Lifespan 上下文管理器 =============
@@ -192,7 +197,7 @@ async def generate_med_ubichan_stream(
         persona_config=persona_config,
         intent_result=None,  # 讓 LLM 自行判斷意圖
         workspace_path=prompt_builder.workspace_path if prompt_builder else None,
-        prompt_loader_obj=None,  # TODO: 注入 PromptLoader
+        prompt_loader_obj=prompt_loader,  # ← 使用正確的對象
         knowledge_content=knowledge_content,
         knowledge_meta=knowledge_meta,
         is_llm1=False
@@ -484,7 +489,7 @@ def init_med_ubichan_api(
         api_key: UbiLM API Key（可選，從環境變數讀取）
         model: LLM 模型名稱
     """
-    global config_loader, formatter, action_gen, llm_service, prompt_builder, output_parser
+    global config_loader, formatter, action_gen, llm_service, prompt_builder, output_parser, prompt_loader
     
     config_loader = config_loader_obj
     formatter = MedUbiOutputFormatter()
@@ -506,6 +511,11 @@ def init_med_ubichan_api(
         prompt_builder = MedUbiPromptBuilder(workspace_path)
         output_parser = MedUbiOutputParser()
         print(f"✅ Prompt 構建器和解析器已初始化")
+    
+    # 初始化 Prompt Loader
+    if workspace_path:
+        prompt_loader = PromptLoader(workspace_path)
+        print(f"✅ Prompt Loader 已初始化")
     
     print(f"✅ 醫療展 API 初始化完成")
     print(f"   - 支持 persona: {config_loader.get_all_ids()}")
