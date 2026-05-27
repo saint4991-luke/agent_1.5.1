@@ -133,7 +133,7 @@ class MedUbiConfigLoader:
         
         # 驗證 output_format
         if 'output_format' in config:
-            valid_formats = ['virtual_human', 'plain', 'markdown']
+            valid_formats = ['med_ubichan', 'virtual_human', 'plain', 'markdown']
             if config['output_format'] not in valid_formats:
                 raise ValueError(f"{filename}: output_format 必須是 {valid_formats} 之一")
         
