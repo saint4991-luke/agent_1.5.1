@@ -63,13 +63,19 @@ class CreateSessionResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     """Chat 請求"""
+    input: Optional[str] = None
     message: Optional[str] = None
     messages: Optional[list] = None
     
     def get_message(self) -> str:
-        """取得用戶消息（支持 message 或 messages 格式）"""
+        """取得用戶消息（支持 input, message 或 messages 格式）"""
+        # 優先使用 input（curl 測試格式）
+        if self.input:
+            return self.input
+        # 其次使用 message
         if self.message:
             return self.message
+        # 最後使用 messages（對話格式）
         if self.messages and len(self.messages) > 0:
             for msg in reversed(self.messages):
                 if msg.get('role') == 'user':
