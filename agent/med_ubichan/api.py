@@ -218,7 +218,7 @@ async def generate_med_ubichan_stream(
             "id": f"{event_id}_error",
             "event": "error",
             "data": {
-                "session_id": request.session_id,
+                "session_id": session_id,
                 "error": llm_result['error']
             }
         }
@@ -237,7 +237,7 @@ async def generate_med_ubichan_stream(
         "id": f"{event_id}_ubichan",
         "event": "ubichan_response",
         "data": {
-            "session_id": request.session_id,
+            "session_id": session_id,
             "text": ubichan_output,
             "emotion": "neutral",
             "lang": "tw",
@@ -255,7 +255,7 @@ async def generate_med_ubichan_stream(
             "id": f"{event_id}_robot",
             "event": "robot_action",
             "data": {
-                "session_id": request.session_id,
+                "session_id": session_id,
                 "steps": robot_steps,
                 "steps_description": robot_steps_desc
             }
@@ -264,7 +264,7 @@ async def generate_med_ubichan_stream(
     
     # 保存對話到 Session
     try:
-        session_store.add_message(request.session_id, "user", user_message)
+        session_store.add_message(session_id, "user", user_message)
         
         assistant_response = {
             "ubichan": ubichan_output,
@@ -272,17 +272,17 @@ async def generate_med_ubichan_stream(
             "robot_steps_desc": robot_steps_desc
         }
         session_store.add_message(
-            request.session_id,
+            session_id,
             "assistant",
             json.dumps(assistant_response, ensure_ascii=False)
         )
-        print(f"✅ 已保存對話到 Session: {request.session_id}")
+        print(f"✅ 已保存對話到 Session: {session_id}")
     except Exception as e:
         print(f"⚠️ 保存 Session 失敗：{e}")
     
     # 計算總時間
     total_time = int((time.time() - start_time) * 1000)
-    print(f"📊 Session: {request.session_id} | TIMING: total={total_time}ms")
+    print(f"📊 Session: {session_id} | TIMING: total={total_time}ms")
 
 
 async def _generate_ubichan_response(
