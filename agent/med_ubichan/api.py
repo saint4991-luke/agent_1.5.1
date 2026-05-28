@@ -8,7 +8,7 @@ API 端點 - 醫療展 Virtual Human Agent (UbiChan × 豹小秘)
 根據 MED_UBIAGENT 規格文檔 v1.0 實現
 """
 
-from fastapi import APIRouter, HTTPException, FastAPI
+from fastapi import APIRouter, HTTPException, FastAPI, Cookie
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -390,32 +390,38 @@ async def create_session(request: CreateSessionRequest):
 
 
 @router.post("/chat", response_model=None)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     """
     Chat 端點 - 醫療展 Virtual Human（STREAM 模式）
     
     流程:
-    1. 從 Session Store 取得 Session 內容
-    2. 從 metadata 獲取 vh_char_config
-    3. 取得 persona_id
-    4. 載入醫療展配置
-    5. 意圖分類
-    6. 生成 UbiChan 回應 + 豹小秘 Action
-    7. 返回 STREAM 回應
+    1. 從 Cookie 取得 session_id
+    2. 從 Session Store 取得 Session 內容
+    3. 從 metadata 獲取 vh_char_config
+    4. 取得 persona_id
+    5. 載入醫療展配置
+    6. 意圖分類
+    7. 生成 UbiChan 回應 + 豹小秘 Action
+    8. 返回 STREAM 回應
     
     Args:
         request: ChatRequest
+        session_id: 從 Cookie 傳來的 session_id
     
     Returns:
         StreamingResponse: SSE 格式回應
     """
     global config_loader
     
-    # 1. 從 Session Store 取得 Session 內容
+    # 1. 從 Cookie 取得 session_id
+    if not session_id:
+        raise HTTPException(status_code=400, detail="缺少 session_id Cookie")
+    
+    # 2. 從 Session Store 取得 Session 內容
     try:
         from session.session_store import get_session_store
         session_store = get_session_store('/data/sessions.db')
-        session_data = session_store.get_session(request.session_id)
+        session_data = session_store.get_session(session_id)
         
         if not session_data:
             raise HTTPException(status_code=404, detail="Session 不存在")
@@ -448,7 +454,7 @@ async def chat(request: ChatRequest):
     
     # 4. 添加用戶消息到 Session Store
     user_message = request.get_message()
-    session_store.add_message(request.session_id, "user", user_message)
+    session_store.add_message(session_id, "user", user_message)
     
     # 5. 返回 STREAM 回應
     return StreamingResponse(
@@ -464,6 +470,23 @@ async def chat(request: ChatRequest):
             "X-Accel-Buffering": "no"
         }
     )
+
+
+# ============= Health Check 端點 =============
+
+@app.get("/health")
+async def health_check():
+    """
+    Health Check 端點
+    
+    Returns:
+        dict: 健康狀態
+    """
+    return {
+        "status": "healthy",
+        "service": "med_ubichan",
+        "version": "1.0.0"
+    }
 
 
 # ============= 初始化函數 =============
