@@ -262,10 +262,8 @@ async def generate_med_ubichan_stream(
         }
         yield format_sse_event(event)
     
-    # 保存對話到 Session
+    # 保存對話到 Session（只保存助手回應，用戶消息已在 chat() 中保存）
     try:
-        session_store.add_message(session_id, "user", user_message)
-        
         assistant_response = {
             "ubichan": ubichan_output,
             "robot_steps": robot_steps,
