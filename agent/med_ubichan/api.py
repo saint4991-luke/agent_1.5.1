@@ -43,16 +43,17 @@ import json as json_module
 
 def format_med_ubichan_sse(event_dict: dict) -> str:
     """
-    格式化醫療展專用 SSE 事件（支持 dict）
+    格式化醫療展專用 SSE 事件（支持 dict，符合 10_SSE_OUTPUT_SPEC.md）
     
     Args:
-        event_dict: 事件字典 {id, event, data}
+        event_dict: 事件字典 {event, message, created, id, timing, ...}
     
     Returns:
         str: SSE 格式字串
     """
-    data_json = json_module.dumps(event_dict['data'], ensure_ascii=False)
-    return f"id: {event_dict['id']}\nevent: {event_dict['event']}\ndata: {data_json}\n\n"
+    # 直接序列化整個 event_dict（扁平結構）
+    data_json = json_module.dumps(event_dict, ensure_ascii=False, separators=(',', ':'))
+    return f"event: {event_dict['event']}\ndata: {data_json}\n\n"
 
 
 # 這些會在 agent-api-streaming.py 中初始化
@@ -230,16 +231,14 @@ async def generate_med_ubichan_stream(
     # ========== 階段 2: 處理 LLM 結果 ==========
     if not llm_result["success"]:
         print(f"❌ LLM 生成失敗：{llm_result['error']}")
-        # 直接返回錯誤
-        event = {
-            "id": f"{event_id}_error",
+        # 發送 error 事件
+        error_event = {
             "event": "error",
-            "data": {
-                "session_id": session_id,
-                "error": llm_result['error']
-            }
+            "error": llm_result['error'],
+            "created": created,
+            "id": event_id
         }
-        yield format_med_ubichan_sse(event)
+        yield format_med_ubichan_sse(error_event)
         return
     
     print(f"✅ LLM 生成成功 ({llm_time}ms)")
@@ -248,46 +247,43 @@ async def generate_med_ubichan_stream(
     robot_steps = llm_result["robot_steps"]
     robot_steps_desc = llm_result["robot_steps_descripts"]
     
-    # 發送 UbiChan 回應
+    # ========== 階段 2: 發送 UbiChan 回應（text_chunk 格式） ==========
     print(f"🦐 發送 UbiChan: {ubichan_output[:50]}...")
-    event = {
-        "id": f"{event_id}_ubichan",
-        "event": "ubichan_response",
-        "data": {
-            "session_id": session_id,
-            "text": ubichan_output,
-            "emotion": "neutral",
-            "lang": "tw",
-            "timing": {
-                "llm_ms": llm_time
-            }
+    
+    # 發送 text_chunk 事件
+    text_chunk_event = {
+        "event": "text_chunk",
+        "message": ubichan_output,
+        "created": created,
+        "id": event_id
+    }
+    yield format_med_ubichan_sse(text_chunk_event)
+    
+    # ========== 階段 3: 發送 steps_description 到豹小秘設備 ==========
+    if robot_steps_desc:
+        print("🚀 階段 3: 發送 steps_description 到豹小秘設備")
+        try:
+            device_result = await send_intent_to_device(steps_description=robot_steps_desc)
+            print(f"✅ 豹小秘 Intent 發送成功：{device_result}")
+        except Exception as e:
+            print(f"⚠️ 豹小秘 Intent 發送失敗：{e}")
+            # 不中斷流程，僅記錄錯誤
+    
+    # ========== 階段 4: 發送 done 事件（含 [DONE] 標記） ==========
+    total_time = int((time.time() - start_time) * 1000)
+    done_event = {
+        "event": "done",
+        "created": created,
+        "id": event_id,
+        "timing": {
+            "llm_ms": llm_time,
+            "total_ms": total_time
         }
     }
-    yield format_med_ubichan_sse(event)
+    yield format_med_ubichan_sse(done_event)
     
-    # 發送豹小秘 Steps（如果有）
-    if robot_steps:
-        print(f"🤖 發送豹小秘 Steps: {len(robot_steps)} 個步驟")
-        event = {
-            "id": f"{event_id}_robot",
-            "event": "robot_action",
-            "data": {
-                "session_id": session_id,
-                "steps": robot_steps,
-                "steps_description": robot_steps_desc
-            }
-        }
-        yield format_med_ubichan_sse(event)
-        
-        # ========== 階段 3: 發送 steps_description 到豹小秘設備 ==========
-        if robot_steps_desc:
-            print("🚀 階段 3: 發送 steps_description 到豹小秘設備")
-            try:
-                device_result = await send_intent_to_device(steps_description=robot_steps_desc)
-                print(f"✅ 豹小秘 Intent 發送成功：{device_result}")
-            except Exception as e:
-                print(f"⚠️ 豹小秘 Intent 發送失敗：{e}")
-                # 不中斷流程，僅記錄錯誤
+    # 發送 [DONE] 標記
+    yield "data: [DONE]\n\n"
     
     # 保存對話到 Session（只保存助手回應，用戶消息已在 chat() 中保存）
     try:
@@ -305,8 +301,6 @@ async def generate_med_ubichan_stream(
     except Exception as e:
         print(f"⚠️ 保存 Session 失敗：{e}")
     
-    # 計算總時間
-    total_time = int((time.time() - start_time) * 1000)
     print(f"📊 Session: {session_id} | TIMING: total={total_time}ms")
 
 
