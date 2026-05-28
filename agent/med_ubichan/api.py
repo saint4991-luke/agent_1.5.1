@@ -36,6 +36,8 @@ from .robot_action_generator import RobotActionGenerator, RobotAction
 # Prompt Builder 和 LLM Service
 from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser, PromptLoader
 from .llm_service import MedUbiLLMService, create_llm_service
+# Device Service
+from .device_service import DeviceService, send_intent_to_device
 
 
 # 這些會在 agent-api-streaming.py 中初始化
@@ -261,6 +263,16 @@ async def generate_med_ubichan_stream(
             }
         }
         yield format_sse_event(event)
+        
+        # ========== 階段 3: 發送 steps_description 到豹小秘設備 ==========
+        if robot_steps_desc:
+            print("🚀 階段 3: 發送 steps_description 到豹小秘設備")
+            try:
+                device_result = await send_intent_to_device(steps_description=robot_steps_desc)
+                print(f"✅ 豹小秘 Intent 發送成功：{device_result}")
+            except Exception as e:
+                print(f"⚠️ 豹小秘 Intent 發送失敗：{e}")
+                # 不中斷流程，僅記錄錯誤
     
     # 保存對話到 Session（只保存助手回應，用戶消息已在 chat() 中保存）
     try:
