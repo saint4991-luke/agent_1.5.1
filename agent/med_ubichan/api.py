@@ -474,7 +474,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
 
 # ============= Health Check 端點 =============
 
-@app.get("/health")
+@router.get("/health")
 async def health_check():
     """
     Health Check 端點
