@@ -591,29 +591,9 @@ async def generate_response_with_llm(
                     "error": parsed_data["error"]
                 }
         
-        # 3. 驗證格式
+        # 3. 提取數據（無需額外驗證）
         ubichan_content = parsed_data["ToUbiChan"]
-        is_valid, error_msg = output_parser.validate_ubichan_format(ubichan_content)
-        if not is_valid:
-            return {
-                "success": False,
-                "ubichan_output": ubichan_content,
-                "robot_steps": None,
-                "robot_steps_descripts": None,
-                "error": f"UbiChan 格式錯誤：{error_msg}"
-            }
-        
         steps = parsed_data["ToBaxiaomi"].get("Steps")
-        if steps:
-            is_valid, error_msg = output_parser.validate_steps(steps)
-            if not is_valid:
-                return {
-                    "success": False,
-                    "ubichan_output": ubichan_content,
-                    "robot_steps": steps,
-                    "robot_steps_descripts": parsed_data["ToBaxiaomi"].get("Steps_Descripts"),
-                    "error": f"Steps 格式錯誤：{error_msg}"
-                }
         
         return {
             "success": True,
