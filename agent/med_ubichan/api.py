@@ -149,6 +149,7 @@ async def lifespan(app: FastAPI):
 
 async def generate_med_ubichan_stream(
     request: ChatRequest,
+    session_id: str,
     persona_config: dict,
     session_store
 ):
@@ -161,6 +162,7 @@ async def generate_med_ubichan_stream(
     
     Args:
         request: ChatRequest
+        session_id: Session ID（從 Cookie 傳來）
         persona_config: 醫療展 Persona 配置
         session_store: Session Store 實例
     
@@ -174,14 +176,14 @@ async def generate_med_ubichan_stream(
     
     # 獲取時間戳
     created = int(start_time)
-    event_id = f"{request.session_id}_{created}"
+    event_id = f"{session_id}_{created}"
     
     # ========== 階段 1: 使用 LLM 生成完整回應 ==========
     print("📝 階段 1: 使用 LLM 生成完整回應")
     llm_start = time.time()
     
     # 獲取對話歷史
-    conversation_history = session_store.get_messages(request.session_id)
+    conversation_history = session_store.get_messages(session_id)
     
     # 獲取知識庫內容（如果需要）
     knowledge_content = None
@@ -460,6 +462,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     return StreamingResponse(
         generate_med_ubichan_stream(
             request=request,
+            session_id=session_id,
             persona_config=config,
             session_store=session_store
         ),
