@@ -38,6 +38,21 @@ from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser, PromptLoade
 from .llm_service import MedUbiLLMService, create_llm_service
 # Device Service
 from .device_service import DeviceService, send_intent_to_device
+import json as json_module
+
+
+def format_med_ubichan_sse(event_dict: dict) -> str:
+    """
+    格式化醫療展專用 SSE 事件（支持 dict）
+    
+    Args:
+        event_dict: 事件字典 {id, event, data}
+    
+    Returns:
+        str: SSE 格式字串
+    """
+    data_json = json_module.dumps(event_dict['data'], ensure_ascii=False)
+    return f"id: {event_dict['id']}\nevent: {event_dict['event']}\ndata: {data_json}\n\n"
 
 
 # 這些會在 agent-api-streaming.py 中初始化
@@ -224,7 +239,7 @@ async def generate_med_ubichan_stream(
                 "error": llm_result['error']
             }
         }
-        yield format_sse_event(event)
+        yield format_med_ubichan_sse(event)
         return
     
     print(f"✅ LLM 生成成功 ({llm_time}ms)")
@@ -248,7 +263,7 @@ async def generate_med_ubichan_stream(
             }
         }
     }
-    yield format_sse_event(event)
+    yield format_med_ubichan_sse(event)
     
     # 發送豹小秘 Steps（如果有）
     if robot_steps:
@@ -262,7 +277,7 @@ async def generate_med_ubichan_stream(
                 "steps_description": robot_steps_desc
             }
         }
-        yield format_sse_event(event)
+        yield format_med_ubichan_sse(event)
         
         # ========== 階段 3: 發送 steps_description 到豹小秘設備 ==========
         if robot_steps_desc:
