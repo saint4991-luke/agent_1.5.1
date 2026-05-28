@@ -63,7 +63,6 @@ class CreateSessionResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     """Chat 請求"""
-    session_id: str
     message: Optional[str] = None
     messages: Optional[list] = None
     
