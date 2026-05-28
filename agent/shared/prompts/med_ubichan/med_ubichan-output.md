@@ -1,8 +1,9 @@
-# 🏥 醫療展 Virtual Human 輸出規格 v1.0
+# 🏥 醫療展 Virtual Human 輸出規格 v1.1
 
-**版本：** v1.0  
-**日期：** 2026-05-27  
-**適用範圍：** 醫療展 UbiChan × 豹小秘 雙機器人協作系統
+**版本：** v1.1  
+**日期：** 2026-05-28  
+**適用範圍：** 醫療展 UbiChan × 豹小秘 雙機器人協作系統  
+**參考規格：** AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf v1.1.0
 
 ---
 
@@ -21,7 +22,7 @@
 
 ```json
 {
-    "ToUbiChan": "<情緒標籤><語言標籤>內容<sbr>...",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->內容<sbr>...",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -41,7 +42,7 @@
 
 | 欄位 | 必填 | 說明 | 範例 |
 |------|------|------|------|
-| `ToUbiChan` | ✅ | UbiChan 回應文字 | `<happy><tw>你好<sbr>請跟我來<sbr>` |
+| `ToUbiChan` | ✅ | UbiChan 回應文字 | `<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好<sbr>請跟我來<sbr>` |
 | `ToBaxiaomi` | ✅ | 豹小秘指令物件 | 包含 Steps 和 Steps_Descripts |
 | `ToBaxiaomi.Steps` | ✅ | 步驟數組 | 每個步驟包含 action、params、speech |
 | `ToBaxiaomi.Steps_Descripts` | ✅ | 自然語言步驟說明 | `"第一步，移動到櫃台。第二步，對 user 說話。"` |
@@ -50,38 +51,109 @@
 
 ## 🎭 ToUbiChan 格式規則
 
-### 情緒標籤（必須在開頭）
+### 情緒標籤（Emotion Tags）
+
+**格式：** `<!-- emotion>{emotion}</emotion -->`
 
 | 標籤 | 說明 | 適用場景 |
 |------|------|----------|
-| `<neutral>` | 中性 | 一般對話 |
-| `<happy>` | 開心 | 問候、引導 |
-| `<concerned>` | 關心 | 健康諮詢、擔憂 |
-| `<thinking>` | 思考 | 考慮、解釋複雜內容 |
-| `<embarrassed>` | 害羞 | 被稱讚、尷尬 |
+| `neutral` | 中性 | 一般對話、準備狀態 |
+| `happy` | 開心 | 問候、引導、歡迎 |
+| `sad` | 悲傷 | 表達遺憾、同理 |
+| `angry` | 生氣 | 表達挫折（謹慎使用） |
+| `surprised` | 驚訝 | 意外情況 |
+| `excited` | 興奮 | 熱情歡迎 |
+| `thinking` | 思考 | 考慮、解釋複雜內容 |
+| `embarrassed` | 害羞 | 被稱讚、尷尬 |
+| `concerned` | 關心 | 健康諮詢、擔憂 |
+| `serious` | 嚴肅 | 重要說明 |
+| `encouraging` | 鼓勵 | 打氣、支持 |
+| `empathetic` | 同理 | 理解用戶感受 |
+| `relaxed` | 輕鬆 | 休閒對話 |
+| `dance` | 舞蹈 | 歡慶動作（特殊場合） |
+| `sing` | 唱歌 | 特殊互動 |
+| `photo` | 拍照 | 拍照姿勢 |
 
-### 語言標籤
-
-| 標籤 | 語言 |
-|------|------|
-| `<tw>` | 繁體中文 |
-| `<cn>` | 簡體中文 |
-| `<en>` | 英文 |
-
-### 斷句符號
-
-- ✅ 使用 `<sbr>` 進行斷句
-- ✅ 每句結尾都必須有 `<sbr>`
-- ✅ 最後一句也要有 `<sbr>`
-
-### ToUbiChan 範例
-
+**範例：**
 ```
-<happy><tw>好的，豹小秘會帶你去掛號處<sbr>請跟著它走<sbr>
+<!-- emotion>happy</emotion -->
+<!-- emotion>neutral</emotion -->
+<!-- emotion>concerned</emotion -->
 ```
 
+### 語言標籤（Language Tags）
+
+**格式：** `<!-- lang>{language_code}</lang -->`
+
+| 代碼 | 語言 | 說明 |
+|------|------|------|
+| `tw (zh)` | 繁體中文 | 台灣中文 |
+| `cn (zh)` | 簡體中文 | 中國大陸 |
+| `en` | 英文 | English |
+| `ja` | 日文 | 日本語 |
+| `ko` | 韓文 | 한국어 |
+| `fr` | 法文 | Français |
+| `de` | 德文 | Deutsch |
+| `it` | 義大利文 | Italiano |
+| `es` | 西班牙文 | Español |
+| `nl` | 荷蘭文 | Nederlands |
+| `ru` | 俄文 | Русский |
+| `pt` | 葡萄牙文 | Português |
+
+**範例：**
 ```
-<concerned><tw>你在這裡休息一下<sbr>我請豹小秘去幫你拿藥<sbr>很快就好<sbr>
+<!-- lang>tw (zh)</lang -->
+<!-- lang>en</lang -->
+<!-- lang>ja</lang -->
+```
+
+### 斷句符號（Sentence Breakdown）
+
+根據 **Virtual Avatar Text Stream Format Specification v1.1.0** 第 3 節：
+
+#### Hard Breaks（立即斷句）
+- **中文：** `。！？……`
+- **英文：** `. ! ? …`
+- **日文：** `。！？……`
+- **韓文：** `. ! ? …`
+- **規則：** 當出現 Hard break 時，立即切分累積文字
+- **特殊情況：** 括號/引號結尾（如 `)」』）》】`）也可視為 Hard breaks
+
+#### Medium Breaks（條件斷句）
+- **中文：** `；：—\n`
+- **英文：** `; : — \n`
+- **規則：** 如果出現 Medium break **且** 累積文字長度 ≥ 10 字元，則切分
+- **特殊情況：** 換行符號 (`\n`) 可視為 Medium break
+
+#### Soft Breaks（軟性斷句）
+- **中文：** `，、、`
+- **英文：** `,`
+- **日文：** `,`
+- **韓文：** `, ·`
+- **規則：** 當累積文字過長（≥ 80 字元）時，在最近的 Soft break 處切分
+
+#### 錯誤防護規則
+
+**不要斷句的情況：**
+1. **英文縮寫：** `Mr.`, `Ms.`, `Dr.`, `Prof.`, `vs.`, `e.g.`, `i.e.`, `U.S.`
+2. **英文所有格/縮約：** `it's`, `don't`, `isn't`, `can't`, `John's`
+3. **數字/小數點：** `3.14`, `10.30`, `1.2.3`, `ver.2.0`
+4. **URLs/Emails：** `://`, `www.`, `@`
+5. **日文長音符：** `ー`
+
+#### ToUbiChan 斷句範例
+
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->
+好的，豹小秘會帶你去掛號處<sbr>
+請跟著它走<sbr>
+```
+
+```
+<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->
+你在這裡休息一下<sbr>
+我請豹小秘去幫你拿藥<sbr>
+很快就好<sbr>
 ```
 
 ---
@@ -183,7 +255,7 @@
 
 ```json
 {
-    "ToUbiChan": "<happy><tw>好的，豹小秘會帶你去掛號處<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，豹小秘會帶你去掛號處<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -216,7 +288,7 @@
 
 ```json
 {
-    "ToUbiChan": "<concerned><tw>你在這裡休息一下<sbr>我請豹小秘去幫你拿藥<sbr>很快就好<sbr>",
+    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡休息一下<sbr>我請豹小秘去幫你拿藥<sbr>很快就好<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -254,7 +326,7 @@
 
 ```json
 {
-    "ToUbiChan": "<happy><tw>藥局在展場 B 區<sbr>我請豹小秘帶你過去<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->藥局在展場 B 區<sbr>我請豹小秘帶你過去<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -277,7 +349,7 @@
 
 ```json
 {
-    "ToUbiChan": "<neutral><tw>好的，我把豹小秘找回來<sbr>請稍等一下<sbr>",
+    "ToUbiChan": "<!-- emotion>neutral</emotion --><!-- lang>tw (zh)</lang -->好的，我把豹小秘找回來<sbr>請稍等一下<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -303,9 +375,10 @@
 
 ### 2. ToUbiChan 格式
 
-- ✅ 必須以情緒標籤開頭（`<neutral>`、`<happy>` 等）
-- ✅ 必須包含語言標籤（`<tw>`、`<cn>`、`<en>`）
+- ✅ 必須使用 XML 註解格式的情緒標籤：`<!-- emotion>{emotion}</emotion -->`
+- ✅ 必須使用 XML 註解格式的語言標籤：`<!-- lang>{language_code}</lang -->`
 - ✅ 必須使用 `<sbr>` 進行斷句
+- ✅ 標籤順序：先 `emotion`，再 `lang`
 
 ### 3. ToBaxiaomi.Steps 格式
 
@@ -370,8 +443,18 @@ def parse_llm_response(llm_response: str) -> dict:
 | 版本 | 日期 | 變更說明 |
 |------|------|----------|
 | v1.0 | 2026-05-27 | 初始版本，定義醫療展 Virtual Human JSON 輸出格式 |
+| v1.1 | 2026-05-28 | 更新情緒標籤和語言標籤格式，符合 AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf v1.1.0 |
+
+---
+
+## 📚 參考文件
+
+- **AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf** v1.1.0
+  - Section 2: General Format
+  - Section 3: Sentence Breakdown Rules
+  - Section 4: Actions
 
 ---
 
 **維護者：** 蝦米 Agent 團隊  
-**最後更新：** 2026-05-27
+**最後更新：** 2026-05-28
