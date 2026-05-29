@@ -374,9 +374,19 @@
                 "action": "cancel",
                 "params": {},
                 "speech": ""
+            },
+            {
+                "action": "speak",
+                "params": {"speech": "我要回櫃台了"},
+                "speech": ""
+            },
+            {
+                "action": "navigate",
+                "params": {"target": "counter"},
+                "speech": ""
             }
         ],
-        "Steps_Descripts": "第一步，停止豹小秘所有動作。"
+        "Steps_Descripts": "第一步，停止豹小秘所有動作。第二步，對 user 說 我要回櫃台了。第三步，移動到櫃台。"
     }
 }
 ```
