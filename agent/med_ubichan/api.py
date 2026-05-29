@@ -358,9 +358,10 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     3. 從 metadata 獲取 vh_char_config
     4. 取得 persona_id
     5. 載入醫療展配置
-    6. 意圖分類
-    7. 生成 UbiChan 回應 + 豹小秘 Action
-    8. 返回 STREAM 回應
+    6. 檢查豹小秘設備狀態
+    7. 意圖分類
+    8. 生成 UbiChan 回應 + 豹小秘 Action
+    9. 返回 STREAM 回應
     
     Args:
         request: ChatRequest
@@ -410,11 +411,55 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             detail=f"未知的醫療展虛擬人：{persona_id}"
         )
     
-    # 4. 添加用戶消息到 Session Store
+    # 4. 檢查豹小秘設備狀態
+    print("🔍 檢查豹小秘設備狀態...")
+    try:
+        from .device_service import DeviceService
+        device_service = DeviceService()
+        device_status = await device_service.get_device_status()
+        print(f"📊 豹小秘狀態：{device_status}")
+        
+        # 預期格式：{"deviceSN":"medical2026-test-001","status":{"state":"busy"}}
+        # 只有 state == "available" 才繼續
+        state = device_status.get('status', {}).get('state', 'unknown')
+        if state != 'available':
+            print(f"⚠️ 豹小秘當前狀態：{state}，無法執行新任務")
+            # 直接回覆提示訊息
+            from fastapi.responses import PlainTextResponse
+            from .sse_events import format_sse_event
+            
+            created = int(time.time())
+            event_id = f"{session_id}_{created}"
+            
+            # 發送 error 事件
+            error_event = {
+                "event": "error",
+                "error": "豹小秘還沒執行完前一次任務，需要叫它取消嗎？",
+                "created": created,
+                "id": event_id
+            }
+            
+            return PlainTextResponse(
+                content=format_med_ubichan_sse(error_event) + "data: [DONE]\n\n",
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"
+                }
+            )
+        
+        print("✅ 豹小秘狀態：available，可以執行任務")
+        
+    except Exception as e:
+        print(f"⚠️ 檢查豹小秘狀態失敗：{e}")
+        # 如果檢查失敗，仍然繼續執行（容錯）
+    
+    # 5. 添加用戶消息到 Session Store
     user_message = request.get_message()
     session_store.add_message(session_id, "user", user_message)
     
-    # 5. 返回 STREAM 回應
+    # 6. 返回 STREAM 回應
     return StreamingResponse(
         generate_med_ubichan_stream(
             request=request,
