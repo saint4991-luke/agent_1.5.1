@@ -247,6 +247,14 @@ async def generate_med_ubichan_stream(
     robot_steps = llm_result["robot_steps"]
     robot_steps_desc = llm_result["robot_steps_descripts"]
     
+    # ========== 階段 1.5: 保存用戶消息到 Session（LLM 成功後） ==========
+    try:
+        session_store.add_message(session_id, "user", user_message)
+        print(f"✅ 已保存用戶消息到 Session: {session_id}")
+    except Exception as e:
+        print(f"⚠️ 保存用戶消息失敗：{e}")
+        # 不中斷流程，繼續處理
+    
     # ========== 階段 2: 發送 UbiChan 回應（text_chunk 格式） ==========
     print(f"🦐 發送 UbiChan: {ubichan_output[:50]}...")
     
@@ -285,7 +293,7 @@ async def generate_med_ubichan_stream(
     # 發送 [DONE] 標記
     yield "data: [DONE]\n\n"
     
-    # 保存對話到 Session（只保存助手回應，用戶消息已在 chat() 中保存）
+    # 保存助手回應到 Session（用戶消息已在前面保存）
     try:
         assistant_response = {
             "ubichan": ubichan_output,
@@ -297,9 +305,9 @@ async def generate_med_ubichan_stream(
             "assistant",
             json.dumps(assistant_response, ensure_ascii=False)
         )
-        print(f"✅ 已保存對話到 Session: {session_id}")
+        print(f"✅ 已保存助手回應到 Session: {session_id}")
     except Exception as e:
-        print(f"⚠️ 保存 Session 失敗：{e}")
+        print(f"⚠️ 保存助手回應失敗：{e}")
     
     print(f"📊 Session: {session_id} | TIMING: total={total_time}ms")
 
@@ -477,11 +485,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             }
         )
     
-    # 5. 添加用戶消息到 Session Store
-    user_message = request.get_message()
-    session_store.add_message(session_id, "user", user_message)
-    
-    # 6. 返回 STREAM 回應
+    # 5. 返回 STREAM 回應（用戶消息將在 generate_med_ubichan_stream() 成功後保存）
     return StreamingResponse(
         generate_med_ubichan_stream(
             request=request,
