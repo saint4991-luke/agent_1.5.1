@@ -2,8 +2,8 @@
 API 端點 - 醫療展 Virtual Human Agent (UbiChan × 小護士)
 
 提供醫療展專用的 /sessions 和 /chat 端點，支持雙機器人協作：
-- UbiChan：虛擬人（Kiosk 螢幕）— 對話接待、需求判斷、指令下達
-- 小護士：引導機器人（地面）— 帶路引導、物品運送、現場互動
+- UbiChan：虛擬人（Kiosk 螢幕）- 對話接待、需求判斷、指令下達
+- 小護士：引導機器人（地面）- 帶路引導、物品運送、現場互動
 
 根據 MED_UBIAGENT 規格文檔 v1.0 實現
 """
@@ -43,10 +43,10 @@ import json as json_module
 def format_med_ubichan_sse(event_dict: dict) -> str:
     """
     格式化醫療展專用 SSE 事件（支持 dict，符合 10_SSE_OUTPUT_SPEC.md）
-    
+
     Args:
         event_dict: 事件字典 {event, message, created, id, timing, ...}
-    
+
     Returns:
         str: SSE 格式字串
     """
@@ -83,7 +83,7 @@ class ChatRequest(BaseModel):
     input: Optional[str] = None
     message: Optional[str] = None
     messages: Optional[list] = None
-    
+
     def get_message(self) -> str:
         """取得用戶消息（支持 input, message 或 messages 格式）"""
         # 優先使用 input（curl 測試格式）
@@ -134,25 +134,25 @@ prompt_loader: Optional[PromptLoader] = None
 async def lifespan(app: FastAPI):
     """
     FastAPI 應用生命週期管理
-    
+
     啟動時：初始化醫療展 API（LLM 服務、Prompt Builder 等）
     關閉時：清理資源
     """
     # ===== 啟動時初始化 =====
     print("🚀 初始化醫療展 Virtual Human API...")
-    
+
     # 從環境變數讀取配置
     workspace_path = Path(os.getenv("WORKSPACE_PATH", "/workspace"))
     api_key = os.getenv("UBILM_API_KEY")
     llm_model = os.getenv("UBILM_LLM_MODEL", "qwen3-8b-fp8")
-    
+
     print(f"   Workspace: {workspace_path}")
     print(f"   API Key: {'***' + api_key[-6:] if api_key else '未設置'}")
     print(f"   LLM Model: {llm_model}")
-    
+
     # 初始化配置載入器
     config_loader_obj = MedUbiConfigLoader()
-    
+
     # 初始化醫療展 API
     init_med_ubichan_api(
         config_loader_obj=config_loader_obj,
@@ -160,11 +160,11 @@ async def lifespan(app: FastAPI):
         api_key=api_key,
         model=llm_model
     )
-    
+
     print("✅ 醫療展 Virtual Human API 初始化完成")
-    
+
     yield
-    
+
     # ===== 關閉時清理 =====
     print("👋 關閉醫療展 Virtual Human API...")
     # 如有需要清理的資源，在這裡處理
@@ -177,56 +177,55 @@ async def generate_med_ubichan_stream(
 ):
     """
     醫療展 Virtual Human STREAM 生成器（純 LLM 版）
-    
+
     流程：
     1. 使用 LLM 生成完整回應（UbiChan + 小護士 Steps）
     2. STREAM 發送
-    
+
     Args:
         request: ChatRequest
         session_id: Session ID（從 Cookie 傳來）
         persona_config: 醫療展 Persona 配置
         session_store: Session Store 實例
-    
+
     Yields:
         SSE 格式事件
     """
     global prompt_builder
-    
+
     start_time = asyncio.get_event_loop().time()
     user_message = request.get_message()
-    
+
     # 獲取時間戳
     created = int(start_time)
     event_id = f"{session_id}_{created}"
-    
+
     # ========== 階段 1: 使用 LLM 生成完整回應 ==========
     print("📝 階段 1: 使用 LLM 生成完整回應")
     llm_start = time.time()
-    
+
     # 獲取對話歷史
     conversation_history = session_store.get_messages(session_id)
-    
+
     # 獲取知識庫內容（如果需要）
     knowledge_content = None
     knowledge_meta = None
     # TODO: 根據 persona_config 載入知識庫
-    
-    # 調用 LLM 生成（不傳 intent_result，讓 LLM 自行判斷）
+
+    # 調用 LLM 生成（LLM 自行判斷意圖）
     llm_result = await generate_response_with_llm(
         user_message=user_message,
         conversation_history=conversation_history,
         persona_config=persona_config,
-        intent_result=None,  # 讓 LLM 自行判斷意圖
         workspace_path=prompt_builder.workspace_path if prompt_builder else None,
-        prompt_loader_obj=prompt_loader,  # ← 使用正確的對象
+        prompt_loader_obj=prompt_loader,
         knowledge_content=knowledge_content,
         knowledge_meta=knowledge_meta,
         is_llm1=False
     )
-    
+
     llm_time = int((time.time() - llm_start) * 1000)
-    
+
     # ========== 階段 2: 處理 LLM 結果 ==========
     if not llm_result["success"]:
         print(f"❌ LLM 生成失敗：{llm_result['error']}")
@@ -239,13 +238,13 @@ async def generate_med_ubichan_stream(
         }
         yield format_med_ubichan_sse(error_event)
         return
-    
+
     print(f"✅ LLM 生成成功 ({llm_time}ms)")
-    
+
     ubichan_output = llm_result["ubichan_output"]
     robot_steps = llm_result["robot_steps"]
     robot_steps_desc = llm_result["robot_steps_descripts"]
-    
+
     # ========== 階段 1.5: 保存用戶消息到 Session（LLM 成功後） ==========
     try:
         session_store.add_message(session_id, "user", user_message)
@@ -253,10 +252,10 @@ async def generate_med_ubichan_stream(
     except Exception as e:
         print(f"⚠️ 保存用戶消息失敗：{e}")
         # 不中斷流程，繼續處理
-    
+
     # ========== 階段 2: 發送 UbiChan 回應（text_chunk 格式） ==========
     print(f"🦐 發送 UbiChan: {ubichan_output[:50]}...")
-    
+
     # 發送 text_chunk 事件
     text_chunk_event = {
         "event": "text_chunk",
@@ -265,7 +264,7 @@ async def generate_med_ubichan_stream(
         "id": event_id
     }
     yield format_med_ubichan_sse(text_chunk_event)
-    
+
     # ========== 階段 3: 發送 steps_description 到小護士設備 ==========
     if robot_steps_desc:
         print("🚀 階段 3: 發送 steps_description 到小護士設備")
@@ -275,7 +274,7 @@ async def generate_med_ubichan_stream(
         except Exception as e:
             print(f"⚠️ 小護士 Intent 發送失敗：{e}")
             # 不中斷流程，僅記錄錯誤
-    
+
     # ========== 階段 4: 發送 done 事件（含 [DONE] 標記） ==========
     total_time = int((time.time() - start_time) * 1000)
     done_event = {
@@ -288,10 +287,10 @@ async def generate_med_ubichan_stream(
         }
     }
     yield format_med_ubichan_sse(done_event)
-    
+
     # 發送 [DONE] 標記
     yield "data: [DONE]\n\n"
-    
+
     # 保存助手回應到 Session（用戶消息已在前面保存）
     try:
         assistant_response = {
@@ -307,7 +306,7 @@ async def generate_med_ubichan_stream(
         print(f"✅ 已保存助手回應到 Session: {session_id}")
     except Exception as e:
         print(f"⚠️ 保存助手回應失敗：{e}")
-    
+
     print(f"📊 Session: {session_id} | TIMING: total={total_time}ms")
 
 
@@ -317,12 +316,12 @@ async def generate_med_ubichan_stream(
 async def create_session(request: CreateSessionRequest):
     """
     創建新 Session（綁定醫療展 persona_id）
-    
+
     前端在開始對話前，先創建 Session 並綁定虛擬人。
     使用 SQLite SessionStore 持久化存儲。
     """
     global config_loader
-    
+
     # 驗證 persona_id
     config = config_loader.get(request.persona_id)
     if not config:
@@ -330,11 +329,11 @@ async def create_session(request: CreateSessionRequest):
             status_code=400,
             detail=f"未知的醫療展虛擬人 ID: {request.persona_id}"
         )
-    
+
     # 創建 Session
     from session.session_store import get_session_store
     session_store = get_session_store('/data/sessions.db')
-    
+
     session = session_store.create_session(
         prefix=request.persona_id,
         metadata={
@@ -346,7 +345,7 @@ async def create_session(request: CreateSessionRequest):
         },
         ttl_hours=24
     )
-    
+
     return CreateSessionResponse(
         session_id=session['session_id'],
         persona_id=request.persona_id,
@@ -358,7 +357,7 @@ async def create_session(request: CreateSessionRequest):
 async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     """
     Chat 端點 - 醫療展 Virtual Human（STREAM 模式）
-    
+
     流程:
     1. 從 Cookie 取得 session_id
     2. 從 Session Store 取得 Session 內容
@@ -369,55 +368,55 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     7. 意圖分類
     8. 生成 UbiChan 回應 + 小護士 Action
     9. 返回 STREAM 回應
-    
+
     Args:
         request: ChatRequest
         session_id: 從 Cookie 傳來的 session_id
-    
+
     Returns:
         StreamingResponse: SSE 格式回應
     """
     global config_loader
-    
+
     # 1. 從 Cookie 取得 session_id
     if not session_id:
         raise HTTPException(status_code=400, detail="缺少 session_id Cookie")
-    
+
     # 2. 從 Session Store 取得 Session 內容
     try:
         from session.session_store import get_session_store
         session_store = get_session_store('/data/sessions.db')
         session_data = session_store.get_session(session_id)
-        
+
         if not session_data:
             raise HTTPException(status_code=404, detail="Session 不存在")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Session 讀取失敗：{str(e)}")
-    
+
     # 2. 從 metadata 獲取 vh_char_config
     metadata = session_data.get('metadata')
     vh_char_config = None
     persona_id = None
-    
+
     if metadata:
         vh_char_config = metadata.get('vh_char_config')
         if vh_char_config:
             persona_id = vh_char_config.get('persona_id')
-    
+
     # 3. 載入醫療展配置
     if not persona_id or not persona_id.startswith('med_'):
         raise HTTPException(
             status_code=400,
             detail="Session 未綁定醫療展虛擬人"
         )
-    
+
     config = config_loader.get(persona_id)
     if not config:
         raise HTTPException(
             status_code=400,
             detail=f"未知的醫療展虛擬人：{persona_id}"
         )
-    
+
     # 4. 檢查小護士設備狀態
     print("🔍 檢查小護士設備狀態...")
     try:
@@ -425,7 +424,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
         device_service = DeviceService()
         device_status = await device_service.get_device_status()
         print(f"📊 小護士狀態：{device_status}")
-        
+
         # 預期格式：{"deviceSN":"medical2026-test-001","status":{"state":"busy"}}
         # 只有 state == "available" 才繼續
         state = device_status.get('status', {}).get('state', 'unknown')
@@ -434,10 +433,10 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             # 直接回覆提示訊息
             from fastapi.responses import PlainTextResponse
             from .sse_events import format_sse_event
-            
+
             created = int(time.time())
             event_id = f"{session_id}_{created}"
-            
+
             # 發送 error 事件
             error_event = {
                 "event": "error",
@@ -445,7 +444,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
                 "created": created,
                 "id": event_id
             }
-            
+
             return PlainTextResponse(
                 content=format_med_ubichan_sse(error_event) + "data: [DONE]\n\n",
                 media_type="text/event-stream",
@@ -455,17 +454,17 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
                     "X-Accel-Buffering": "no"
                 }
             )
-        
+
         print("✅ 小護士狀態：available，可以執行任務")
-        
+
     except Exception as e:
         print(f"⚠️ 檢查小護士狀態失敗：{e}")
         # 如果檢查失敗，回報 error_event
         from fastapi.responses import PlainTextResponse
-        
+
         created = int(time.time())
         event_id = f"{session_id}_{created}"
-        
+
         # 發送 error 事件
         error_event = {
             "event": "error",
@@ -473,7 +472,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             "created": created,
             "id": event_id
         }
-        
+
         return PlainTextResponse(
             content=format_med_ubichan_sse(error_event) + "data: [DONE]\n\n",
             media_type="text/event-stream",
@@ -483,7 +482,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
                 "X-Accel-Buffering": "no"
             }
         )
-    
+
     # 5. 返回 STREAM 回應（用戶消息將在 generate_med_ubichan_stream() 成功後保存）
     return StreamingResponse(
         generate_med_ubichan_stream(
@@ -507,7 +506,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
 async def health_check():
     """
     Health Check 端點
-    
+
     Returns:
         dict: 健康狀態
     """
@@ -529,9 +528,9 @@ def init_med_ubichan_api(
 ):
     """
     初始化醫療展 API
-    
+
     在 Server 啟動時調用，注入依賴。
-    
+
     Args:
         config_loader_obj: 醫療展配置載入器
         llm_service_obj: LLM 服務（可選，如果為 None 則自動創建）
@@ -540,10 +539,10 @@ def init_med_ubichan_api(
         model: LLM 模型名稱
     """
     global config_loader, formatter, llm_service, prompt_builder, output_parser, prompt_loader
-    
+
     config_loader = config_loader_obj
     formatter = MedUbiOutputFormatter()
-    
+
     # 初始化 LLM 服務
     if llm_service_obj:
         llm_service = llm_service_obj
@@ -554,18 +553,18 @@ def init_med_ubichan_api(
             workspace_path=workspace_path
         )
         print(f"✅ LLM 服務已初始化 (model={model})")
-    
+
     # 初始化 Prompt 構建器和解析器
     if workspace_path:
         prompt_builder = MedUbiPromptBuilder(workspace_path)
         output_parser = MedUbiOutputParser()
         print(f"✅ Prompt 構建器和解析器已初始化")
-    
+
     # 初始化 Prompt Loader
     if workspace_path:
         prompt_loader = PromptLoader(workspace_path)
         print(f"✅ Prompt Loader 已初始化")
-    
+
     print(f"✅ 醫療展 API 初始化完成")
     print(f"   - 支持 persona: {config_loader.get_all_ids()}")
     print(f"   - 支持 Intent: registration, pharmacy, cancel, info_location")
@@ -578,7 +577,6 @@ async def generate_response_with_llm(
     user_message: str,
     conversation_history: list,
     persona_config: dict,
-    intent_result: Dict[str, Any],
     workspace_path: Path,
     prompt_loader_obj,
     knowledge_content: str = None,
@@ -587,13 +585,13 @@ async def generate_response_with_llm(
 ) -> Dict[str, Any]:
     """
     使用 LLM 生成完整的 UbiChan + 小護士 回應
-    
+
     流程：
     1. 構建 Prompt
     2. 調用 LLM（使用 MedUbiLLMService）
     3. 解析 LLM 輸出
     4. 驗證格式
-    
+
     Returns:
         {
             "success": bool,
@@ -604,7 +602,7 @@ async def generate_response_with_llm(
         }
     """
     global prompt_builder, output_parser, llm_service
-    
+
     try:
         # 1. 構建 Prompt
         print("📝 構建 Prompt...")
@@ -615,13 +613,12 @@ async def generate_response_with_llm(
             prompt_loader_obj=prompt_loader_obj,
             knowledge_content=knowledge_content,
             knowledge_meta=knowledge_meta,
-            intent_result=intent_result,
             is_llm1=is_llm1
         )
-        
+
         # 2. 調用 LLM
         print("🤖 調用 LLM...")
-        
+
         if llm_service and hasattr(llm_service, 'generate_med_ubichan_response'):
             result = await llm_service.generate_med_ubichan_response(
                 prompt=prompt,
@@ -629,7 +626,7 @@ async def generate_response_with_llm(
                 temperature=0.7,
                 max_tokens=2048
             )
-            
+
             if not result['success']:
                 return {
                     "success": False,
@@ -638,7 +635,7 @@ async def generate_response_with_llm(
                     "robot_steps_descripts": None,
                     "error": result['error']
                 }
-            
+
             parsed_data = result['parsed']
         else:
             llm_response = await llm_service.chat_async(
@@ -649,7 +646,7 @@ async def generate_response_with_llm(
                 temperature=0.7
             )
             parsed_data = output_parser.parse_llm_response(llm_response)
-            
+
             if not parsed_data["success"]:
                 return {
                     "success": False,
@@ -658,11 +655,11 @@ async def generate_response_with_llm(
                     "robot_steps_descripts": None,
                     "error": parsed_data["error"]
                 }
-        
+
         # 3. 提取數據（無需額外驗證）
         ubichan_content = parsed_data["ToUbiChan"]
         steps = parsed_data["ToBaxiaomi"].get("Steps")
-        
+
         return {
             "success": True,
             "ubichan_output": ubichan_content,
@@ -670,7 +667,7 @@ async def generate_response_with_llm(
             "robot_steps_descripts": parsed_data["ToBaxiaomi"].get("Steps_Descripts"),
             "error": None
         }
-    
+
     except Exception as e:
         return {
             "success": False,
@@ -701,12 +698,12 @@ app.include_router(router, prefix="/med_ubichan", tags=["med_ubichan"])
 if __name__ == "__main__":
     import argparse
     import uvicorn
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="0.0.0.0")
     parser.add_argument("--port", type=int, default=3007)
     args = parser.parse_args()
-    
+
     print(f"🚀 啟動醫療展 Virtual Human API 服務")
     print(f"   Host: {args.host}")
     print(f"   Port: {args.port}")
@@ -723,5 +720,5 @@ if __name__ == "__main__":
     print(f"     -H 'Content-Type: application/json' \\")
     print(f"     -d '{{\"session_id\": \"<session_id>\", \"message\": \"掛號處在哪？\"}}'")
     print(f"\n{'='*60}\n")
-    
+
     uvicorn.run(app, host=args.host, port=args.port)

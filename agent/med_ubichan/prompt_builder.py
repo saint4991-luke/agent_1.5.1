@@ -25,11 +25,11 @@ import re
 
 class PromptLoader:
     """醫療展 Prompt 載入器"""
-    
+
     def __init__(self, workspace_path: Path):
         """
         初始化 PromptLoader
-        
+
         Args:
             workspace_path: Workspace 根目錄路徑
         """
@@ -37,21 +37,21 @@ class PromptLoader:
         project_root = self.workspace_path.parent
         self.prompts_path = project_root / 'agent' / 'shared' / 'prompts' / 'med_ubichan'
         self._cache: Dict[str, str] = {}
-    
+
     def load_prompt(self, output_format: str) -> str:
         """
         載入輸出提示詞模板
-        
+
         Args:
             output_format: 輸出格式（med_ubichan | plain | markdown）
-        
+
         Returns:
             提示詞模板內容
         """
         # 檢查快取
         if output_format in self._cache:
             return self._cache[output_format]
-        
+
         # 根據 output_format 選擇提示詞文件
         if output_format == 'med_ubichan':
             prompt_file = self.prompts_path / "med_ubichan-output.md"
@@ -62,34 +62,34 @@ class PromptLoader:
         else:
             print(f"⚠️  未知的 output_format: {output_format}，使用預設")
             return "一般文字回應，無需情緒標籤"
-        
+
         # 檢查文件是否存在
         if not prompt_file.exists():
             print(f"⚠️  提示詞文件不存在：{prompt_file}")
             return "一般文字回應，無需情緒標籤"
-        
+
         # 讀取文件
         try:
             with open(prompt_file, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             # 存入快取
             self._cache[output_format] = content
             print(f"✅ 載入提示詞模板：{output_format} ({len(content)} 字)")
             return content
-        
+
         except Exception as e:
             print(f"⚠️  讀取提示詞文件失敗：{e}")
             return "一般文字回應，無需情緒標籤"
-    
+
     def load_prompt_for_llm1(self, output_format: str, config: Dict = None) -> str:
         """
         為 LLM1 載入提示詞模板（完整版，但 LLM1 只關注 language + 斷句）
-        
+
         Args:
             output_format: 輸出格式
             config: Persona 配置（可選，用於獲取 quick_response 配置）
-        
+
         Returns:
             提示詞模板內容（完整版）
         """
@@ -97,10 +97,10 @@ class PromptLoader:
         max_length = 20  # 預設
         if config and 'quick_response' in config:
             max_length = config['quick_response'].get('max_length', 20)
-        
+
         # 載入基礎提示詞
         base_prompt = self.load_prompt(output_format)
-        
+
         # 添加快速回應長度限制
         length_instruction = f"""
 
@@ -108,20 +108,20 @@ class PromptLoader:
 **嚴格遵守：快速回應只能一句話，不超過 {max_length}個字**
 """
         return base_prompt + length_instruction
-    
+
     def load_prompt_for_llm2(self, output_format: str) -> str:
         """
         為 LLM2 載入提示詞模板（完整版，含 emotion）
-        
+
         Args:
             output_format: 輸出格式
-        
+
         Returns:
             提示詞模板內容（完整版）
         """
         # LLM2 使用完整版提示詞模板
         return self.load_prompt(output_format)
-    
+
     def clear_cache(self):
         """清空快取（用於開發環境重新載入）"""
         self._cache.clear()
@@ -134,16 +134,16 @@ class PromptLoader:
 
 class MedUbiPromptBuilder:
     """醫療展 Prompt 構建器"""
-    
+
     def __init__(self, workspace_path: Path):
         """
         初始化 Prompt 構建器
-        
+
         Args:
             workspace_path: Workspace 根目錄路徑
         """
         self.workspace_path = workspace_path
-    
+
     async def _build_prompt(
         self,
         config: dict,
@@ -152,13 +152,12 @@ class MedUbiPromptBuilder:
         prompt_loader_obj,
         knowledge_content: str = None,
         knowledge_meta: str = None,
-        intent_result: Optional[Dict[str, Any]] = None,
         is_llm1: bool = False,
         persona_config_path: Optional[Path] = None
     ) -> Tuple[str, bool]:
         """
         組合完整的 Prompt（6 部分結構）
-        
+
         根據 MED_UBIAGENT 規格：
         1. 角色風格 (Style)
         2. 輸出規格 (Output Spec) - 包含 JSON 格式範例
@@ -166,7 +165,7 @@ class MedUbiPromptBuilder:
         4. 小護士 Action 說明 (Robot Action Spec)
         5. 對話歷史 (Conversation History)
         6. 用戶問題 (User Message)
-        
+
         Args:
             config: Persona 配置（YAML v2.0 結構）
                 {
@@ -180,23 +179,17 @@ class MedUbiPromptBuilder:
             prompt_loader_obj: PromptLoader 實例
             knowledge_content: 知識庫完整內容（LLM2 使用）
             knowledge_meta: 知識庫 Meta（LLM1 使用）
-            intent_result: 意圖分類結果（可選）
-                {
-                    "intent": "registration",
-                    "target_location": "registration",
-                    "requires_robot": True
-                }
             is_llm1: 是否為 LLM1 使用
             persona_config_path: config.yaml 的路徑（可選，用於確定風格文件位置）
                 如果未提供，則使用 personas/{persona_id}/ 路徑
-        
+
         Returns:
             (prompt, emotion_enabled)
         """
         # 1. 載入角色風格
         style_file = config.get('style', {}).get('file', 'style.md')
         persona_id = config.get('persona_id', 'med-ubichan')
-        
+
         # 優先使用 persona_config_path 確定風格文件位置
         if persona_config_path:
             # 風格文件與 config.yaml 在同一目錄
@@ -204,13 +197,13 @@ class MedUbiPromptBuilder:
         else:
             # 向後兼容：使用 personas/{persona_id}/ 路徑
             style_path = self.workspace_path / 'personas' / persona_id / style_file
-        
+
         if style_path.exists():
             style_content = style_path.read_text(encoding='utf-8')
         else:
             print(f"⚠️  風格文件不存在：{style_path}")
             style_content = f"# {persona_id} 風格定義\n（文件缺失）"
-        
+
         # 2. 載入輸出格式提示詞模板
         output_format = config.get('output_format', 'med_ubichan')
         if is_llm1:
@@ -218,7 +211,7 @@ class MedUbiPromptBuilder:
         else:
             prompt_content = prompt_loader_obj.load_prompt(output_format)
         emotion_enabled = True  # 醫療展版本始終啟用情緒標籤
-        
+
         # 3. 載入知識庫（LLM1 vs LLM2 差異）
         if is_llm1:
             # LLM1：只載入 Meta（用於判斷）
@@ -226,10 +219,10 @@ class MedUbiPromptBuilder:
         else:
             # LLM2：載入完整內容
             knowledge_section = knowledge_content if knowledge_content else "無"
-        
+
         # 4. 小護士 Action 說明
         robot_action_spec = self._get_robot_action_spec()
-        
+
         # 5. 格式化對話歷史
         recent_history = conversation_history[-10:] if conversation_history else []
         history_text = "\n".join([
@@ -237,16 +230,7 @@ class MedUbiPromptBuilder:
             for msg in recent_history
         ]) if recent_history else "（無）"
         
-        # 6. 意圖資訊（如果有）
-        intent_section = "無"
-        if intent_result:
-            intent_section = f"""
-- Intent: {intent_result.get('intent', 'unknown')}
-- Target Location: {intent_result.get('target_location', 'null')}
-- Requires Robot: {intent_result.get('requires_robot', False)}
-"""
-        
-        # 7. 組合 Prompt
+        # 6. 組合 Prompt
         prompt = f"""# 角色風格
 {style_content}
 
@@ -259,22 +243,19 @@ class MedUbiPromptBuilder:
 # 小護士 Action 說明
 {robot_action_spec}
 
-# 意圖分類結果
-{intent_section}
-
 # 對話歷史
 {history_text}
 
 # 用戶問題
 {user_message}
 """
-        
+
         return prompt, emotion_enabled
-    
+
     def _get_robot_action_spec(self) -> str:
         """
         取得小護士支持的 Action 說明
-        
+
         Returns:
             Action 說明文字
         """
@@ -349,15 +330,15 @@ class MedUbiPromptBuilder:
 
 class MedUbiOutputParser:
     """醫療展 LLM 輸出解析器"""
-    
+
     @staticmethod
     def parse_llm_response(llm_response: str) -> Dict[str, Any]:
         """
         解析 LLM 輸出的 JSON 回應
-        
+
         Args:
             llm_response: LLM 返回的文字（可能包含 JSON）
-        
+
         Returns:
             {
                 "success": bool,
@@ -389,7 +370,7 @@ class MedUbiOutputParser:
                             "ToBaxiaomi": None,
                             "error": "無法解析 JSON 格式"
                         }
-            
+
             # 4. 驗證必要欄位
             if "ToUbiChan" not in data:
                 return {
@@ -398,7 +379,7 @@ class MedUbiOutputParser:
                     "ToBaxiaomi": None,
                     "error": "缺少 ToUbiChan 欄位"
                 }
-            
+
             if "ToBaxiaomi" not in data:
                 return {
                     "success": False,
@@ -406,7 +387,7 @@ class MedUbiOutputParser:
                     "ToBaxiaomi": None,
                     "error": "缺少 ToBaxiaomi 欄位"
                 }
-            
+
             # 5. 驗證 ToBaxiaomi 結構
             to_baxiaomi = data.get("ToBaxiaomi")
             if not isinstance(to_baxiaomi, dict):
@@ -416,7 +397,7 @@ class MedUbiOutputParser:
                     "ToBaxiaomi": None,
                     "error": "ToBaxiaomi 必須是物件"
                 }
-            
+
             if "Steps" not in to_baxiaomi:
                 return {
                     "success": False,
@@ -424,7 +405,7 @@ class MedUbiOutputParser:
                     "ToBaxiaomi": None,
                     "error": "ToBaxiaomi 缺少 Steps 欄位"
                 }
-            
+
             if "Steps_Descripts" not in to_baxiaomi:
                 return {
                     "success": False,
@@ -432,7 +413,7 @@ class MedUbiOutputParser:
                     "ToBaxiaomi": None,
                     "error": "ToBaxiaomi 缺少 Steps_Descripts 欄位"
                 }
-            
+
             # 6. 驗證 Steps 是數組
             if not isinstance(to_baxiaomi.get("Steps"), list):
                 return {
@@ -441,7 +422,7 @@ class MedUbiOutputParser:
                     "ToBaxiaomi": None,
                     "error": "Steps 必須是數組"
                 }
-            
+
             # 7. 成功解析
             return {
                 "success": True,
@@ -449,7 +430,7 @@ class MedUbiOutputParser:
                 "ToBaxiaomi": to_baxiaomi,
                 "error": None
             }
-        
+
         except json.JSONDecodeError as e:
             return {
                 "success": False,
@@ -464,30 +445,30 @@ class MedUbiOutputParser:
                 "ToBaxiaomi": None,
                 "error": f"解析錯誤：{str(e)}"
             }
-    
+
     @staticmethod
     def extract_ubichan_content(parsed_data: Dict[str, Any]) -> Optional[str]:
         """
         從解析結果中提取 UbiChan 內容
-        
+
         Args:
             parsed_data: parse_llm_response 返回的字典
-        
+
         Returns:
             UbiChan 內容字符串（包含情緒標籤和語言標籤）或 None
         """
         if parsed_data.get("success") and parsed_data.get("ToUbiChan"):
             return parsed_data["ToUbiChan"]
         return None
-    
+
     @staticmethod
     def extract_steps_descripts(parsed_data: Dict[str, Any]) -> Optional[str]:
         """
         從解析結果中提取 Steps_Descripts 內容
-        
+
         Args:
             parsed_data: parse_llm_response 返回的字典
-        
+
         Returns:
             Steps_Descripts 字符串或 None
         """
@@ -496,15 +477,15 @@ class MedUbiOutputParser:
             if isinstance(to_baxiaomi, dict):
                 return to_baxiaomi.get("Steps_Descripts")
         return None
-    
+
     @staticmethod
     def extract_steps(parsed_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
         """
         從解析結果中提取 Steps 數組
-        
+
         Args:
             parsed_data: parse_llm_response 返回的字典
-        
+
         Returns:
             Steps 數組或 None
         """
@@ -515,4 +496,3 @@ class MedUbiOutputParser:
                 if isinstance(steps, list):
                     return steps
         return None
-    
