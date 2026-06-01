@@ -173,7 +173,8 @@ async def generate_med_ubichan_stream(
     request: ChatRequest,
     session_id: str,
     persona_config: dict,
-    session_store
+    session_store,
+    robot_state: str = "available"
 ):
     """
     醫療展 Virtual Human STREAM 生成器（純 LLM 版）
@@ -187,6 +188,7 @@ async def generate_med_ubichan_stream(
         session_id: Session ID（從 Cookie 傳來）
         persona_config: 醫療展 Persona 配置
         session_store: Session Store 實例
+        robot_state: 小護士設備狀態（available | busy | unknown）
 
     Yields:
         SSE 格式事件
@@ -441,7 +443,8 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             request=request,
             session_id=session_id,
             persona_config=config,
-            session_store=session_store
+            session_store=session_store,
+            robot_state=robot_state
         ),
         media_type="text/event-stream",
         headers={
