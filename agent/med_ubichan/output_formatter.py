@@ -70,11 +70,11 @@ class MedUbiOutputFormatter:
         Example:
             >>> formatter = MedUbiOutputFormatter()
             >>> formatter.format_ubichan_response(
-            ...     "好的，豹小秘會帶你去掛號處。請跟著它走。",
+            ...     "好的，小護士會帶你去掛號處。請跟著它走。",
             ...     emotion="happy",
             ...     lang="tw"
             ... )
-            '<!-- emotion -->happy<!-- /emotion -->\n<!-- lang -->tw (zh)<!-- /lang -->\n\n好的，豹小秘會帶你去掛號處。<sbr>\n請跟著它走。<sbr>\n'
+            '<!-- emotion -->happy<!-- /emotion -->\n<!-- lang -->tw (zh)<!-- /lang -->\n\n好的，小護士會帶你去掛號處。<sbr>\n請跟著它走。<sbr>\n'
         """
         # 驗證情緒標籤
         if emotion is None:

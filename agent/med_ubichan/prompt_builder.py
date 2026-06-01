@@ -1,5 +1,5 @@
 """
-Prompt Builder - 醫療展 Virtual Human (UbiChan × 豹小秘)
+Prompt Builder - 醫療展 Virtual Human (UbiChan × 小護士)
 
 根據 MED_UBIAGENT 規格文檔 v1.0，構建完整的 Prompt 並解析 LLM 輸出。
 
@@ -163,7 +163,7 @@ class MedUbiPromptBuilder:
         1. 角色風格 (Style)
         2. 輸出規格 (Output Spec) - 包含 JSON 格式範例
         3. 知識庫內容 (Knowledge) - LLM1 用 Meta，LLM2 用完整內容
-        4. 豹小秘 Action 說明 (Robot Action Spec)
+        4. 小護士 Action 說明 (Robot Action Spec)
         5. 對話歷史 (Conversation History)
         6. 用戶問題 (User Message)
         
@@ -227,7 +227,7 @@ class MedUbiPromptBuilder:
             # LLM2：載入完整內容
             knowledge_section = knowledge_content if knowledge_content else "無"
         
-        # 4. 豹小秘 Action 說明
+        # 4. 小護士 Action 說明
         robot_action_spec = self._get_robot_action_spec()
         
         # 5. 格式化對話歷史
@@ -256,7 +256,7 @@ class MedUbiPromptBuilder:
 # 知識庫內容
 {knowledge_section}
 
-# 豹小秘 Action 說明
+# 小護士 Action 說明
 {robot_action_spec}
 
 # 意圖分類結果
@@ -273,13 +273,13 @@ class MedUbiPromptBuilder:
     
     def _get_robot_action_spec(self) -> str:
         """
-        取得豹小秘支持的 Action 說明
+        取得小護士支持的 Action 說明
         
         Returns:
             Action 說明文字
         """
         return """## navigate（導航）
-- 描述：讓豹小秘導航到指定地點
+- 描述：讓小護士導航到指定地點
 - params: {"target": "地點 ID"}
 - 支持的地點：
   - counter: 櫃台
@@ -295,7 +295,7 @@ class MedUbiPromptBuilder:
 ```
 
 ## speak（播放語音）
-- 描述：讓豹小秘播放語音
+- 描述：讓小護士播放語音
 - params: {"speech": "語音內容"}
 - 範例：
 ```json
@@ -307,7 +307,7 @@ class MedUbiPromptBuilder:
 ```
 
 ## pickup_item（拾取物品）
-- 描述：讓豹小秘到指定地點拾取物品
+- 描述：讓小護士到指定地點拾取物品
 - params: {"location": "地點 ID", "item": "物品名稱"}
 - 範例：
 ```json
@@ -319,7 +319,7 @@ class MedUbiPromptBuilder:
 ```
 
 ## cancel（停止）
-- 描述：停止豹小秘所有動作
+- 描述：停止小護士所有動作
 - params: {}
 - 範例：
 ```json

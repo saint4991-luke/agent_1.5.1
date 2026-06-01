@@ -2,7 +2,7 @@
 
 ## 概述
 
-本模組提供醫療展 Virtual Human (UbiChan × 豹小秘) 的 Prompt 構建和輸出解析功能。
+本模組提供醫療展 Virtual Human (UbiChan × 小護士) 的 Prompt 構建和輸出解析功能。
 
 根據 MED_UBIAGENT 規格文檔 v1.0，LLM 必須生成以下 JSON 格式：
 
@@ -25,7 +25,7 @@ Prompt 構建器，負責組合完整的 6 部分 Prompt：
 1. **角色風格** - UbiChan 的角色定義
 2. **輸出規格** - JSON 格式範例和說明
 3. **知識庫內容** - 醫療展場地資訊
-4. **豹小秘 Action 說明** - 支持的 Action 清單
+4. **小護士 Action 說明** - 支持的 Action 清單
 5. **對話歷史** - 最近 10 輪對話
 6. **用戶問題** - 當前用戶輸入
 
@@ -157,7 +157,7 @@ async def chat_endpoint(request):
 
 **範例：**
 ```
-<neutral><tw>掛號處在展場 A 區<sbr>我請豹小秘帶你過去<sbr>請跟著它走<sbr>
+<neutral><tw>掛號處在展場 A 區<sbr>我請小護士帶你過去<sbr>請跟著它走<sbr>
 ```
 
 ### ToBaxiaomi 格式
@@ -217,10 +217,10 @@ async def chat_endpoint(request):
 
 **Steps_Descripts 範例：**
 ```
-第一步，讓豹小秘移動到櫃台前方。
-第二步，讓豹小秘對 user 說「你好，請跟我來掛號處」。
-第三步，讓豹小秘導航到掛號處。
-第四步，讓豹小秘對 user 說「掛號處到了，請先抽號碼牌」。
+第一步，讓小護士移動到櫃台前方。
+第二步，讓小護士對 user 說「你好，請跟我來掛號處」。
+第三步，讓小護士導航到掛號處。
+第四步，讓小護士對 user 說「掛號處到了，請先抽號碼牌」。
 ```
 
 ## 測試

@@ -2,7 +2,7 @@
 
 **版本：** v1.1  
 **日期：** 2026-05-28  
-**適用範圍：** 醫療展 UbiChan × 豹小秘 雙機器人協作系統  
+**適用範圍：** 醫療展 UbiChan × 小護士 雙機器人協作系統  
 **參考規格：** AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf v1.1.0
 
 ---
@@ -11,8 +11,8 @@
 
 本規格定義醫療展 Virtual Human 的輸出格式，採用 **JSON 格式**，讓系統可以：
 - **解析 UbiChan 回應** - 包含情緒標籤、語言標籤、斷句符號
-- **解析豹小秘 Actions** - 包含導航、物品運送、語音播放等指令
-- **雙機器人協作** - UbiChan 負責對話接待，豹小秘負責帶路引導
+- **解析小護士 Actions** - 包含導航、物品運送、語音播放等指令
+- **雙機器人協作** - UbiChan 負責對話接待，小護士負責帶路引導
 
 ---
 
@@ -43,7 +43,7 @@
 | 欄位 | 必填 | 說明 | 範例 |
 |------|------|------|------|
 | `ToUbiChan` | ✅ | UbiChan 回應文字 | `<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好<sbr>請跟我來<sbr>` |
-| `ToBaxiaomi` | ✅ | 豹小秘指令物件 | 包含 Steps 和 Steps_Descripts |
+| `ToBaxiaomi` | ✅ | 小護士指令物件 | 包含 Steps 和 Steps_Descripts |
 | `ToBaxiaomi.Steps` | ✅ | 步驟數組 | 每個步驟包含 action、params、speech |
 | `ToBaxiaomi.Steps_Descripts` | ✅ | 自然語言步驟說明 | `"第一步，移動到櫃台。第二步，對 user 說話。"` |
 
@@ -145,14 +145,14 @@
 
 ```
 <!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->
-好的，豹小秘會帶你去掛號處<sbr>
+好的，小護士會帶你去掛號處<sbr>
 請跟著它走<sbr>
 ```
 
 ```
 <!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->
 你在這裡休息一下<sbr>
-我請豹小秘去幫你拿藥<sbr>
+我請小護士去幫你拿藥<sbr>
 很快就好<sbr>
 ```
 
@@ -273,7 +273,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，豹小秘會帶你去掛號處<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，小護士會帶你去掛號處<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -306,7 +306,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡休息一下<sbr>我請豹小秘去幫你拿藥<sbr>很快就好<sbr>",
+    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡休息一下<sbr>我請小護士去幫你拿藥<sbr>很快就好<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -344,7 +344,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->藥局在展場 B 區<sbr>我請豹小秘帶你過去<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->藥局在展場 B 區<sbr>我請小護士帶你過去<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -367,7 +367,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>neutral</emotion --><!-- lang>tw (zh)</lang -->好的，我把豹小秘找回來<sbr>請稍等一下<sbr>",
+    "ToUbiChan": "<!-- emotion>neutral</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>請稍等一下<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -386,7 +386,7 @@
                 "speech": ""
             }
         ],
-        "Steps_Descripts": "第一步，停止豹小秘所有動作。第二步，對 user 說 我要回櫃台了。第三步，移動到櫃台。"
+        "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 user 說 我要回櫃台了。第三步，移動到櫃台。"
     }
 }
 ```

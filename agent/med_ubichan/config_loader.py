@@ -2,7 +2,7 @@
 醫療展 UbiChan 配置載入器
 
 載入醫療展場景的虛擬人配置（YAML 格式）
-支持地點定義、Intent 分類、豹小秘 Action 配置
+支持地點定義、Intent 分類、小護士 Action 配置
 """
 
 import yaml

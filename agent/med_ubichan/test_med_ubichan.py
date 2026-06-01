@@ -2,7 +2,7 @@
 """
 醫療展 med_ubichan 模組測試腳本
 
-測試 UbiChan 輸出格式化和豹小秘 Action 生成
+測試 UbiChan 輸出格式化和小護士 Action 生成
 """
 
 import sys
@@ -28,7 +28,7 @@ def test_ubichan_formatter():
     # 測試 1：基本格式化
     print("\n【測試 1】基本格式化")
     output = formatter.format_ubichan_response(
-        text="好的，豹小秘會帶你去掛號處。請跟著它走。",
+        text="好的，小護士會帶你去掛號處。請跟著它走。",
         emotion="happy",
         lang="tw"
     )
@@ -70,9 +70,9 @@ def test_ubichan_formatter():
 
 
 def test_robot_action_generator():
-    """測試豹小秘 Action 生成器"""
+    """測試小護士 Action 生成器"""
     print("\n" + "=" * 60)
-    print("測試豹小秘 Action 生成器")
+    print("測試小護士 Action 生成器")
     print("=" * 60)
     
     action_gen = RobotActionGenerator()
@@ -146,14 +146,14 @@ def test_robot_action_generator():
     print("✅ 測試 4 通過")
     
     print("\n" + "=" * 60)
-    print("所有豹小秘測試通過！")
+    print("所有小護士測試通過！")
     print("=" * 60)
 
 
 def test_complete_output():
-    """測試完整輸出（UbiChan + 豹小秘）"""
+    """測試完整輸出（UbiChan + 小護士）"""
     print("\n" + "=" * 60)
-    print("測試完整輸出（UbiChan × 豹小秘）")
+    print("測試完整輸出（UbiChan × 小護士）")
     print("=" * 60)
     
     formatter = MedUbiOutputFormatter()
@@ -163,7 +163,7 @@ def test_complete_output():
     print("\n【情境】用戶說：「我想要掛號」")
     print("-" * 60)
     
-    ubichan_text = "好的，豹小秘會帶你去掛號處。請跟著它走。"
+    ubichan_text = "好的，小護士會帶你去掛號處。請跟著它走。"
     robot_action = action_gen.generate_navigate_action(
         target="registration",
         speech="你好，請跟我來掛號處"
@@ -179,11 +179,11 @@ def test_complete_output():
     print("\n1️⃣ UbiChan 輸出:")
     print(complete_output['ubichan_output'])
     
-    print("\n2️⃣ 豹小秘 JSON 指令:")
+    print("\n2️⃣ 小護士 JSON 指令:")
     import json
     print(json.dumps(complete_output['robot_json'], indent=2, ensure_ascii=False))
     
-    print("\n3️⃣ 豹小秘自然語言步驟:")
+    print("\n3️⃣ 小護士自然語言步驟:")
     print(complete_output['robot_steps'])
     
     # 驗證

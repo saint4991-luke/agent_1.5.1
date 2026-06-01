@@ -1,7 +1,7 @@
 """
-豹小秘機器人 Action 生成器
+小護士機器人 Action 生成器
 
-根據 MED_UBIAGENT 規格文檔 v1.0 生成豹小秘 Action：
+根據 MED_UBIAGENT 規格文檔 v1.0 生成小護士 Action：
 - JSON 指令格式
 - 自然語言步驟描述
 
@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 @dataclass
 class RobotAction:
-    """豹小秘 Action 數據結構"""
+    """小護士 Action 數據結構"""
     action: str  # navigate, pickup_item, speak, cancel
     params: Dict[str, Any]
     speech: Optional[str] = None
@@ -35,7 +35,7 @@ class RobotAction:
 
 
 class RobotActionGenerator:
-    """豹小秘 Action 生成器"""
+    """小護士 Action 生成器"""
     
     # 醫療展地點定義
     LOCATIONS = {
@@ -60,7 +60,7 @@ class RobotActionGenerator:
         
         Args:
             target: 目標地點 ID (counter, registration, pharmacy)
-            speech: 豹小秘播放的語音
+            speech: 小護士播放的語音
             user_message: 用戶原始消息（用於生成步驟描述）
             include_steps: 是否包含自然語言步驟描述
         
@@ -115,16 +115,16 @@ class RobotActionGenerator:
         Args:
             target: 目標地點 ID
             target_name: 目標地點中文名稱
-            speech: 豹小秘播放的語音
+            speech: 小護士播放的語音
         
         Returns:
             自然語言步驟描述字串
         """
         steps = [
-            f"第一步，讓豹小秘移動到櫃台（counter）前方。",
-            f"第二步，讓豹小秘對 user 說「{speech}」。",
-            f"第三步，讓豹小秘導航到{target_name}（{target}）。",
-            f"第四步，讓豹小秘對 user 說「{target_name}到了，祝你{self._get_blessing(target)}」。"
+            f"第一步，讓小護士移動到櫃台（counter）前方。",
+            f"第二步，讓小護士對 user 說「{speech}」。",
+            f"第三步，讓小護士導航到{target_name}（{target}）。",
+            f"第四步，讓小護士對 user 說「{target_name}到了，祝你{self._get_blessing(target)}」。"
         ]
         
         return "\n".join(steps)
@@ -143,7 +143,7 @@ class RobotActionGenerator:
         Args:
             location: 地點 ID (pharmacy)
             item: 物品名稱（例如：藥品）
-            speech: 豹小秘播放的語音（對工作人員說）
+            speech: 小護士播放的語音（對工作人員說）
             return_location: 返回地點 ID（預設 counter）
             include_steps: 是否包含自然語言步驟描述
         
@@ -195,7 +195,7 @@ class RobotActionGenerator:
             location: 地點 ID
             location_name: 地點中文名稱
             item: 物品名稱
-            speech: 豹小秘播放的語音
+            speech: 小護士播放的語音
             return_location: 返回地點 ID
             return_name: 返回地點中文名稱
         
@@ -203,11 +203,11 @@ class RobotActionGenerator:
             自然語言步驟描述字串
         """
         steps = [
-            f"第一步，讓豹小秘移動到{location_name}（{location}）。",
-            f"第二步，讓豹小秘對工作人員說「{speech}」。",
-            f"第三步，讓豹小秘等待物品裝載完成。",
-            f"第四步，讓豹小秘導航回{return_name}（{return_location}）。",
-            f"第五步，讓豹小秘對 user 說「幫你把{item}拿來了，祝你早日康復」。"
+            f"第一步，讓小護士移動到{location_name}（{location}）。",
+            f"第二步，讓小護士對工作人員說「{speech}」。",
+            f"第三步，讓小護士等待物品裝載完成。",
+            f"第四步，讓小護士導航回{return_name}（{return_location}）。",
+            f"第五步，讓小護士對 user 說「幫你把{item}拿來了，祝你早日康復」。"
         ]
         
         return "\n".join(steps)
@@ -234,7 +234,7 @@ class RobotActionGenerator:
         )
         
         if include_steps:
-            action.natural_language_steps = f"讓豹小秘對 user 說「{speech}」。"
+            action.natural_language_steps = f"讓小護士對 user 說「{speech}」。"
         
         return action
     
@@ -261,9 +261,9 @@ class RobotActionGenerator:
         
         if include_steps:
             action.natural_language_steps = "\n".join([
-                "第一步，讓豹小秘停止當前動作。",
-                f"第二步，讓豹小秘對 user 說「{speech}」。",
-                "第三步，讓豹小秘導航回櫃台（counter）待命區。"
+                "第一步，讓小護士停止當前動作。",
+                f"第二步，讓小護士對 user 說「{speech}」。",
+                "第三步，讓小護士導航回櫃台（counter）待命區。"
             ])
         
         return action
@@ -292,7 +292,7 @@ class RobotActionGenerator:
         config: Optional[Dict[str, Any]] = None
     ) -> Optional[RobotAction]:
         """
-        根據 Intent 生成對應的豹小秘 Action
+        根據 Intent 生成對應的小護士 Action
         
         Args:
             intent: Intent 類型 (registration, pharmacy, cancel, info_location)
@@ -391,15 +391,15 @@ class RobotActionGenerator:
         
         Args:
             ubichan_text: UbiChan 回應文字
-            robot_action: 豹小秘 Action（可選，None 表示無需行動）
+            robot_action: 小護士 Action（可選，None 表示無需行動）
             emotion: 情緒標籤
             lang: 語言標籤
         
         Returns:
             {
                 "ubichan_output": str,  # UbiChan 輸出（含情緒標籤）
-                "robot_json": Optional[Dict],  # 豹小秘 JSON 指令
-                "robot_steps": Optional[str]  # 豹小秘自然語言步驟
+                "robot_json": Optional[Dict],  # 小護士 JSON 指令
+                "robot_steps": Optional[str]  # 小護士自然語言步驟
             }
         """
         from .output_formatter import MedUbiOutputFormatter
@@ -413,7 +413,7 @@ class RobotActionGenerator:
             lang=lang
         )
         
-        # 格式化豹小秘輸出
+        # 格式化小護士輸出
         robot_json = robot_action.to_json() if robot_action else None
         robot_steps = robot_action.natural_language_steps if robot_action else None
         

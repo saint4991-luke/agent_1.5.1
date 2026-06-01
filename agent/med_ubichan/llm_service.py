@@ -317,7 +317,7 @@ class MedUbiLLMService(UbiLLMService):
             messages = [
                 {
                     "role": "system",
-                    "content": "你是一個醫療展 Virtual Human 助手，負責生成 UbiChan 和豹小秘的協作回應。請嚴格按照 JSON 格式輸出。"
+                    "content": "你是一個醫療展 Virtual Human 助手，負責生成 UbiChan 和小護士的協作回應。請嚴格按照 JSON 格式輸出。"
                 },
                 {
                     "role": "user",

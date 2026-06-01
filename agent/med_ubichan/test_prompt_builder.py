@@ -96,7 +96,7 @@ def test_output_parser():
     # 測試用例 1: 正確的 JSON 格式
     print("\n📋 測試用例 1: 正確的 JSON 格式")
     llm_response_1 = """{
-    "ToUbiChan": "<neutral><tw>掛號處在展場 A 區<sbr>我請豹小秘帶你過去<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<neutral><tw>掛號處在展場 A 區<sbr>我請小護士帶你過去<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -124,7 +124,7 @@ def test_output_parser():
                 }
             }
         ],
-        "Steps_Descripts": "第一步，讓豹小秘移動到櫃台前方。第二步，讓豹小秘對 user 說「你好，請跟我來掛號處」。第三步，讓豹小秘導航到掛號處。第四步，讓豹小秘對 user 說「掛號處到了，請先抽號碼牌」"
+        "Steps_Descripts": "第一步，讓小護士移動到櫃台前方。第二步，讓小護士對 user 說「你好，請跟我來掛號處」。第三步，讓小護士導航到掛號處。第四步，讓小護士對 user 說「掛號處到了，請先抽號碼牌」"
     }
 }"""
     
@@ -161,7 +161,7 @@ def test_output_parser():
 
 ```json
 {
-    "ToUbiChan": "<happy><tw>藥局在展場 B 區<sbr>我請豹小秘帶你過去<sbr>",
+    "ToUbiChan": "<happy><tw>藥局在展場 B 區<sbr>我請小護士帶你過去<sbr>",
     "ToBaxiaomi": {
         "Steps": [
             {
@@ -171,7 +171,7 @@ def test_output_parser():
                 }
             }
         ],
-        "Steps_Descripts": "第一步，讓豹小秘導航到藥局。"
+        "Steps_Descripts": "第一步，讓小護士導航到藥局。"
     }
 }
 ```

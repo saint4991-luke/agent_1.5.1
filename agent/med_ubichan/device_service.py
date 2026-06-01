@@ -13,7 +13,7 @@ from pathlib import Path
 
 # 環境變數配置
 UBIBOS_BASE_URL = os.getenv("UBIBOS_BASE_URL", "https://ubibos-preview.ubitus.ai")
-UBIBOS_DEVICE_SN = os.getenv("UBIBOS_DEVICE_SN", "")  # 豹小秘設備序號
+UBIBOS_DEVICE_SN = os.getenv("UBIBOS_DEVICE_SN", "")  # 小護士設備序號
 
 
 class DeviceService:
@@ -25,7 +25,7 @@ class DeviceService:
         
         Args:
             base_url: UbiBOS API 基礎 URL
-            device_sn: 設備序號（豹小秘）
+            device_sn: 設備序號（小護士）
         """
         self.base_url = base_url or UBIBOS_BASE_URL
         self.device_sn = device_sn or UBIBOS_DEVICE_SN
@@ -34,7 +34,7 @@ class DeviceService:
         """
         2.1.3. Trigger a intent to Device
         
-        發送 intent 到設備（豹小秘）
+        發送 intent 到設備（小護士）
         
         Args:
             input: intent 輸入內容（steps_description）
@@ -112,7 +112,7 @@ def get_device_service() -> DeviceService:
 
 async def send_intent_to_device(steps_description: str, device_sn: Optional[str] = None) -> Dict[str, Any]:
     """
-    便捷函數：發送 steps_description 到豹小秘設備
+    便捷函數：發送 steps_description 到小護士設備
     
     Args:
         steps_description: 步驟描述字符串

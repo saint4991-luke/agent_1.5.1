@@ -8,14 +8,14 @@
 
 ## 📋 模組概述
 
-`med_ubichan` 是醫療展場景專用的 Virtual Human Agent 模組，實現 **UbiChan × 豹小秘** 雙機器人協作架構。
+`med_ubichan` 是醫療展場景專用的 Virtual Human Agent 模組，實現 **UbiChan × 小護士** 雙機器人協作架構。
 
 ### 主要角色
 
 | 角色 | 類型 | 職責 |
 |------|------|------|
 | **UbiChan** | 虛擬人 (Kiosk 螢幕) | 對話接待、需求判斷、指令下達 |
-| **豹小秘** | 引導機器人 (地面) | 帶路引導、物品運送、現場互動 |
+| **小護士** | 引導機器人 (地面) | 帶路引導、物品運送、現場互動 |
 
 ### 支持場景
 
@@ -33,7 +33,7 @@ agent/med_ubichan/
 ├── __init__.py                      # 模組初始化
 ├── config_loader.py                 # 配置載入器（YAML）
 ├── output_formatter.py              # UbiChan 輸出格式化器
-├── robot_action_generator.py        # 豹小秘 Action 生成器
+├── robot_action_generator.py        # 小護士 Action 生成器
 └── README.md                        # 本文檔
 ```
 
@@ -75,7 +75,7 @@ locations = config_loader.get_locations('med_ubichan')
 ```python
 # 格式化回應（符合 09_OUTPUT_FORMAT.md 規格）
 output = formatter.format_ubichan_response(
-    text="好的，豹小秘會帶你去掛號處。請跟著它走。",
+    text="好的，小護士會帶你去掛號處。請跟著它走。",
     emotion="happy",
     lang="tw"
 )
@@ -84,11 +84,11 @@ output = formatter.format_ubichan_response(
 # <!-- emotion -->happy<!-- /emotion -->
 # <!-- lang -->tw (zh)<!-- /lang -->
 #
-# 好的，豹小秘會帶你去掛號處。<sbr>
+# 好的，小護士會帶你去掛號處。<sbr>
 # 請跟著它走。<sbr>
 ```
 
-### 4. 生成豹小秘 Action
+### 4. 生成小護士 Action
 
 ```python
 # 生成導航 Action
@@ -108,10 +108,10 @@ json_output = action.to_json()
 
 # 取得自然語言步驟描述
 steps = action.natural_language_steps
-# 第一步，讓豹小秘移動到櫃台（counter）前方。
-# 第二步，讓豹小秘對 user 說「我帶你去掛號處，請跟我來」。
-# 第三步，讓豹小秘導航到掛號處（registration）。
-# 第四步，讓豹小秘對 user 說「掛號處到了，祝你掛號順利」。
+# 第一步，讓小護士移動到櫃台（counter）前方。
+# 第二步，讓小護士對 user 說「我帶你去掛號處，請跟我來」。
+# 第三步，讓小護士導航到掛號處（registration）。
+# 第四步，讓小護士對 user 說「掛號處到了，祝你掛號順利」。
 ```
 
 ---
@@ -128,14 +128,14 @@ formatter = MedUbiOutputFormatter()
 action_gen = RobotActionGenerator()
 
 # 1. 生成 UbiChan 回應
-ubichan_text = "好的，豹小秘會帶你去掛號處。請跟著它走。"
+ubichan_text = "好的，小護士會帶你去掛號處。請跟著它走。"
 ubichan_output = formatter.format_ubichan_response(
     text=ubichan_text,
     emotion="happy",
     lang="tw"
 )
 
-# 2. 生成豹小秘 Action
+# 2. 生成小護士 Action
 robot_action = action_gen.generate_navigate_action(
     target="registration",
     speech="你好，請跟我來掛號處"
@@ -153,10 +153,10 @@ complete_output = action_gen.format_complete_output(
 print("=== UbiChan 輸出 ===")
 print(complete_output['ubichan_output'])
 
-print("\n=== 豹小秘 JSON 指令 ===")
+print("\n=== 小護士 JSON 指令 ===")
 print(complete_output['robot_json'])
 
-print("\n=== 豹小秘自然語言步驟 ===")
+print("\n=== 小護士自然語言步驟 ===")
 print(complete_output['robot_steps'])
 ```
 
@@ -167,10 +167,10 @@ print(complete_output['robot_steps'])
 <!-- emotion -->happy<!-- /emotion -->
 <!-- lang -->tw (zh)<!-- /lang -->
 
-好的，豹小秘會帶你去掛號處。<sbr>
+好的，小護士會帶你去掛號處。<sbr>
 請跟著它走。<sbr>
 
-=== 豹小秘 JSON 指令 ===
+=== 小護士 JSON 指令 ===
 {
   "robot": "baxiaomi",
   "action": "navigate",
@@ -178,11 +178,11 @@ print(complete_output['robot_steps'])
   "speech": "你好，請跟我來掛號處"
 }
 
-=== 豹小秘自然語言步驟 ===
-第一步，讓豹小秘移動到櫃台（counter）前方。
-第二步，讓豹小秘對 user 說「你好，請跟我來掛號處」。
-第三步，讓豹小秘導航到掛號處（registration）。
-第四步，讓豹小秘對 user 說「掛號處到了，祝你掛號順利」。
+=== 小護士自然語言步驟 ===
+第一步，讓小護士移動到櫃台（counter）前方。
+第二步，讓小護士對 user 說「你好，請跟我來掛號處」。
+第三步，讓小護士導航到掛號處（registration）。
+第四步，讓小護士對 user 說「掛號處到了，祝你掛號順利」。
 ```
 
 ---
@@ -191,7 +191,7 @@ print(complete_output['robot_steps'])
 
 根據 [MED_UBIAGENT.md](../../docs/01_designs/MED_UBIAGENT.md) 規格，支持以下 Intent：
 
-| Intent | 關鍵字 | 豹小秘 Action |
+| Intent | 關鍵字 | 小護士 Action |
 |--------|--------|--------------|
 | `registration` | 掛號、登記、報到 | `navigate` → `registration` |
 | `pharmacy` | 拿藥、取藥、藥品 | `pickup_item` → `pharmacy` |
@@ -215,7 +215,7 @@ print(complete_output['robot_steps'])
 {sentence}<sbr>
 ```
 
-### 豹小秘 Action 格式
+### 小護士 Action 格式
 
 ```json
 {
@@ -229,10 +229,10 @@ print(complete_output['robot_steps'])
 ### 自然語言步驟描述
 
 ```
-第一步，讓豹小秘移動到 [地點]。
-第二步，讓豹小秘對 [對象] 說「[語音內容]」。
-第三步，讓豹小秘導航到 [地點]。
-第四步，讓豹小秘對 [對象] 說「[語音內容]」。
+第一步，讓小護士移動到 [地點]。
+第二步，讓小護士對 [對象] 說「[語音內容]」。
+第三步，讓小護士導航到 [地點]。
+第四步，讓小護士對 [對象] 說「[語音內容]」。
 ```
 
 ---
@@ -253,7 +253,7 @@ def test_ubichan_output():
     assert "<sbr>" in output
     print("✅ UbiChan 輸出測試通過")
 
-# 測試豹小秘 Action 生成
+# 測試小護士 Action 生成
 def test_robot_action():
     action_gen = RobotActionGenerator()
     action = action_gen.generate_navigate_action(
@@ -264,7 +264,7 @@ def test_robot_action():
     assert action.params["target"] == "registration"
     assert action.speech == "請跟我來"
     assert action.natural_language_steps is not None
-    print("✅ 豹小秘 Action 測試通過")
+    print("✅ 小護士 Action 測試通過")
 
 # 執行測試
 test_ubichan_output()
@@ -285,7 +285,7 @@ test_robot_action()
 
 ## 🦐 開發團隊
 
-**醫療展專案 - UbiChan × 豹小秘 聯手服務！**
+**醫療展專案 - UbiChan × 小護士 聯手服務！**
 
 ---
 

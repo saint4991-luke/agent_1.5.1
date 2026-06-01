@@ -100,7 +100,7 @@ async def test_med_ubichan_prompt():
 # 知識庫內容
 醫療展場地資訊：櫃台在入口處，掛號處在 A 區，藥局在 B 區。
 
-# 豹小秘 Action 說明
+# 小護士 Action 說明
 - navigate: 導航到指定地點（counter, registration, pharmacy）
 - speak: 播放語音
 - pickup_item: 拾取物品

@@ -1,9 +1,9 @@
 """
-API 端點 - 醫療展 Virtual Human Agent (UbiChan × 豹小秘)
+API 端點 - 醫療展 Virtual Human Agent (UbiChan × 小護士)
 
 提供醫療展專用的 /sessions 和 /chat 端點，支持雙機器人協作：
 - UbiChan：虛擬人（Kiosk 螢幕）— 對話接待、需求判斷、指令下達
-- 豹小秘：引導機器人（地面）— 帶路引導、物品運送、現場互動
+- 小護士：引導機器人（地面）— 帶路引導、物品運送、現場互動
 
 根據 MED_UBIAGENT 規格文檔 v1.0 實現
 """
@@ -108,7 +108,7 @@ class ChatResponse(BaseModel):
     emotion: Optional[str] = None
     lang: Optional[str] = None
     persona_id: str
-    robot_action: Optional[Dict[str, Any]] = None  # 豹小秘 Action
+    robot_action: Optional[Dict[str, Any]] = None  # 小護士 Action
     robot_steps: Optional[str] = None  # 自然語言步驟
     timings: Optional[Dict[str, Any]] = None
     usage: Optional[Dict[str, Any]] = None
@@ -180,7 +180,7 @@ async def generate_med_ubichan_stream(
     醫療展 Virtual Human STREAM 生成器（純 LLM 版）
     
     流程：
-    1. 使用 LLM 生成完整回應（UbiChan + 豹小秘 Steps）
+    1. 使用 LLM 生成完整回應（UbiChan + 小護士 Steps）
     2. STREAM 發送
     
     Args:
@@ -267,14 +267,14 @@ async def generate_med_ubichan_stream(
     }
     yield format_med_ubichan_sse(text_chunk_event)
     
-    # ========== 階段 3: 發送 steps_description 到豹小秘設備 ==========
+    # ========== 階段 3: 發送 steps_description 到小護士設備 ==========
     if robot_steps_desc:
-        print("🚀 階段 3: 發送 steps_description 到豹小秘設備")
+        print("🚀 階段 3: 發送 steps_description 到小護士設備")
         try:
             device_result = await send_intent_to_device(steps_description=robot_steps_desc)
-            print(f"✅ 豹小秘 Intent 發送成功：{device_result}")
+            print(f"✅ 小護士 Intent 發送成功：{device_result}")
         except Exception as e:
-            print(f"⚠️ 豹小秘 Intent 發送失敗：{e}")
+            print(f"⚠️ 小護士 Intent 發送失敗：{e}")
             # 不中斷流程，僅記錄錯誤
     
     # ========== 階段 4: 發送 done 事件（含 [DONE] 標記） ==========
@@ -366,9 +366,9 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     3. 從 metadata 獲取 vh_char_config
     4. 取得 persona_id
     5. 載入醫療展配置
-    6. 檢查豹小秘設備狀態
+    6. 檢查小護士設備狀態
     7. 意圖分類
-    8. 生成 UbiChan 回應 + 豹小秘 Action
+    8. 生成 UbiChan 回應 + 小護士 Action
     9. 返回 STREAM 回應
     
     Args:
@@ -419,19 +419,19 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             detail=f"未知的醫療展虛擬人：{persona_id}"
         )
     
-    # 4. 檢查豹小秘設備狀態
-    print("🔍 檢查豹小秘設備狀態...")
+    # 4. 檢查小護士設備狀態
+    print("🔍 檢查小護士設備狀態...")
     try:
         from .device_service import DeviceService
         device_service = DeviceService()
         device_status = await device_service.get_device_status()
-        print(f"📊 豹小秘狀態：{device_status}")
+        print(f"📊 小護士狀態：{device_status}")
         
         # 預期格式：{"deviceSN":"medical2026-test-001","status":{"state":"busy"}}
         # 只有 state == "available" 才繼續
         state = device_status.get('status', {}).get('state', 'unknown')
         if state != 'available':
-            print(f"⚠️ 豹小秘當前狀態：{state}，無法執行新任務")
+            print(f"⚠️ 小護士當前狀態：{state}，無法執行新任務")
             # 直接回覆提示訊息
             from fastapi.responses import PlainTextResponse
             from .sse_events import format_sse_event
@@ -442,7 +442,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             # 發送 error 事件
             error_event = {
                 "event": "error",
-                "error": "豹小秘還沒執行完前一次任務，需要叫它取消嗎？",
+                "error": "小護士還沒執行完前一次任務，需要叫它取消嗎？",
                 "created": created,
                 "id": event_id
             }
@@ -457,10 +457,10 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
                 }
             )
         
-        print("✅ 豹小秘狀態：available，可以執行任務")
+        print("✅ 小護士狀態：available，可以執行任務")
         
     except Exception as e:
-        print(f"⚠️ 檢查豹小秘狀態失敗：{e}")
+        print(f"⚠️ 檢查小護士狀態失敗：{e}")
         # 如果檢查失敗，回報 error_event
         from fastapi.responses import PlainTextResponse
         
@@ -470,7 +470,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
         # 發送 error 事件
         error_event = {
             "event": "error",
-            "error": "無法取得豹小秘當前狀態，請稍候再試",
+            "error": "無法取得小護士當前狀態，請稍候再試",
             "created": created,
             "id": event_id
         }
@@ -589,7 +589,7 @@ async def generate_response_with_llm(
     is_llm1: bool = False
 ) -> Dict[str, Any]:
     """
-    使用 LLM 生成完整的 UbiChan + 豹小秘 回應
+    使用 LLM 生成完整的 UbiChan + 小護士 回應
     
     流程：
     1. 構建 Prompt
@@ -690,7 +690,7 @@ async def generate_response_with_llm(
 # 創建 FastAPI 應用（帶 lifespan）
 app = FastAPI(
     title="醫療展 Virtual Human API",
-    description="UbiChan × 豹小秘 雙機器人協作系統",
+    description="UbiChan × 小護士 雙機器人協作系統",
     version="1.0.0",
     lifespan=lifespan
 )
