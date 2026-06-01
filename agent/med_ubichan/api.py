@@ -453,7 +453,29 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
         
     except Exception as e:
         print(f"⚠️ 檢查豹小秘狀態失敗：{e}")
-        # 如果檢查失敗，仍然繼續執行（容錯）
+        # 如果檢查失敗，回報 error_event
+        from fastapi.responses import PlainTextResponse
+        
+        created = int(time.time())
+        event_id = f"{session_id}_{created}"
+        
+        # 發送 error 事件
+        error_event = {
+            "event": "error",
+            "error": "無法取得豹小秘當前狀態，請稍候再試",
+            "created": created,
+            "id": event_id
+        }
+        
+        return PlainTextResponse(
+            content=format_med_ubichan_sse(error_event) + "data: [DONE]\n\n",
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
     
     # 5. 添加用戶消息到 Session Store
     user_message = request.get_message()
