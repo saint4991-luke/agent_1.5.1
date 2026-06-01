@@ -32,7 +32,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'tools'))
 # 醫療展專用模組
 from .config_loader import MedUbiConfigLoader
 from .output_formatter import MedUbiOutputFormatter
-from .robot_action_generator import RobotActionGenerator, RobotAction
 # Prompt Builder 和 LLM Service
 from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser, PromptLoader
 from .llm_service import MedUbiLLMService, create_llm_service
@@ -540,11 +539,10 @@ def init_med_ubichan_api(
         api_key: UbiLM API Key（可選，從環境變數讀取）
         model: LLM 模型名稱
     """
-    global config_loader, formatter, action_gen, llm_service, prompt_builder, output_parser, prompt_loader
+    global config_loader, formatter, llm_service, prompt_builder, output_parser, prompt_loader
     
     config_loader = config_loader_obj
     formatter = MedUbiOutputFormatter()
-    action_gen = RobotActionGenerator()
     
     # 初始化 LLM 服務
     if llm_service_obj:
@@ -570,7 +568,6 @@ def init_med_ubichan_api(
     
     print(f"✅ 醫療展 API 初始化完成")
     print(f"   - 支持 persona: {config_loader.get_all_ids()}")
-    print(f"   - 支持地點：{RobotActionGenerator.LOCATIONS}")
     print(f"   - 支持 Intent: registration, pharmacy, cancel, info_location")
     print(f"   - LLM 生成模式：{'啟用' if (prompt_builder and llm_service) else '未啟用'}")
 
