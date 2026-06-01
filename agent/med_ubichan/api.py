@@ -212,7 +212,7 @@ async def generate_med_ubichan_stream(
     knowledge_meta = None
     # TODO: 根據 persona_config 載入知識庫
 
-    # 調用 LLM 生成（LLM 自行判斷意圖）
+    # 調用 LLM 生成（LLM 自行判斷意圖，並根據小護士狀態決定是否可以指派任務）
     llm_result = await generate_response_with_llm(
         user_message=user_message,
         conversation_history=conversation_history,
@@ -221,7 +221,8 @@ async def generate_med_ubichan_stream(
         prompt_loader_obj=prompt_loader,
         knowledge_content=knowledge_content,
         knowledge_meta=knowledge_meta,
-        is_llm1=False
+        is_llm1=False,
+        robot_state=robot_state
     )
 
     llm_time = int((time.time() - llm_start) * 1000)
@@ -417,8 +418,9 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
             detail=f"未知的醫療展虛擬人：{persona_id}"
         )
 
-    # 4. 檢查小護士設備狀態
+    # 4. 檢查小護士設備狀態（將狀態傳入 prompt_builder，讓 LLM 決定如何處理）
     print("🔍 檢查小護士設備狀態...")
+    robot_state = "unknown"  # 預設為 unknown
     try:
         from .device_service import DeviceService
         device_service = DeviceService()
@@ -426,64 +428,14 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
         print(f"📊 小護士狀態：{device_status}")
 
         # 預期格式：{"deviceSN":"medical2026-test-001","status":{"state":"busy"}}
-        # 只有 state == "available" 才繼續
-        state = device_status.get('status', {}).get('state', 'unknown')
-        if state != 'available':
-            print(f"⚠️ 小護士當前狀態：{state}，無法執行新任務")
-            # 直接回覆提示訊息
-            from fastapi.responses import PlainTextResponse
-            from .sse_events import format_sse_event
-
-            created = int(time.time())
-            event_id = f"{session_id}_{created}"
-
-            # 發送 error 事件
-            error_event = {
-                "event": "error",
-                "error": "小護士還沒執行完前一次任務，需要叫它取消嗎？",
-                "created": created,
-                "id": event_id
-            }
-
-            return PlainTextResponse(
-                content=format_med_ubichan_sse(error_event) + "data: [DONE]\n\n",
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                    "X-Accel-Buffering": "no"
-                }
-            )
-
-        print("✅ 小護士狀態：available，可以執行任務")
+        robot_state = device_status.get('status', {}).get('state', 'unknown')
+        print(f"✅ 小護士狀態：{robot_state}")
 
     except Exception as e:
         print(f"⚠️ 檢查小護士狀態失敗：{e}")
-        # 如果檢查失敗，回報 error_event
-        from fastapi.responses import PlainTextResponse
+        robot_state = "unknown"
 
-        created = int(time.time())
-        event_id = f"{session_id}_{created}"
-
-        # 發送 error 事件
-        error_event = {
-            "event": "error",
-            "error": "無法取得小護士當前狀態，請稍候再試",
-            "created": created,
-            "id": event_id
-        }
-
-        return PlainTextResponse(
-            content=format_med_ubichan_sse(error_event) + "data: [DONE]\n\n",
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no"
-            }
-        )
-
-    # 5. 返回 STREAM 回應（用戶消息將在 generate_med_ubichan_stream() 成功後保存）
+    # 5. 返回 STREAM 回應（用戶消息將在 generate_med_ubichan_stream() 成功後保存，並傳入 robot_state）
     return StreamingResponse(
         generate_med_ubichan_stream(
             request=request,
@@ -581,7 +533,8 @@ async def generate_response_with_llm(
     prompt_loader_obj,
     knowledge_content: str = None,
     knowledge_meta: str = None,
-    is_llm1: bool = False
+    is_llm1: bool = False,
+    robot_state: str = "available"
 ) -> Dict[str, Any]:
     """
     使用 LLM 生成完整的 UbiChan + 小護士 回應
@@ -591,6 +544,17 @@ async def generate_response_with_llm(
     2. 調用 LLM（使用 MedUbiLLMService）
     3. 解析 LLM 輸出
     4. 驗證格式
+
+    Args:
+        user_message: 用戶消息
+        conversation_history: 對話歷史
+        persona_config: Persona 配置
+        workspace_path: Workspace 路徑
+        prompt_loader_obj: PromptLoader 實例
+        knowledge_content: 知識庫內容
+        knowledge_meta: 知識庫 Meta
+        is_llm1: 是否為 LLM1
+        robot_state: 小護士設備狀態（available | busy | unknown）
 
     Returns:
         {
@@ -613,7 +577,8 @@ async def generate_response_with_llm(
             prompt_loader_obj=prompt_loader_obj,
             knowledge_content=knowledge_content,
             knowledge_meta=knowledge_meta,
-            is_llm1=is_llm1
+            is_llm1=is_llm1,
+            robot_state=robot_state
         )
 
         # 2. 調用 LLM

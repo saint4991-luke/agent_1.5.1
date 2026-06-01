@@ -153,7 +153,8 @@ class MedUbiPromptBuilder:
         knowledge_content: str = None,
         knowledge_meta: str = None,
         is_llm1: bool = False,
-        persona_config_path: Optional[Path] = None
+        persona_config_path: Optional[Path] = None,
+        robot_state: str = "available"
     ) -> Tuple[str, bool]:
         """
         組合完整的 Prompt（6 部分結構）
@@ -182,6 +183,10 @@ class MedUbiPromptBuilder:
             is_llm1: 是否為 LLM1 使用
             persona_config_path: config.yaml 的路徑（可選，用於確定風格文件位置）
                 如果未提供，則使用 personas/{persona_id}/ 路徑
+            robot_state: 小護士設備狀態（available | busy | unknown）
+                - available: 可以指派新任務
+                - busy: 只能取消當前任務
+                - unknown: 不可指派任務
 
         Returns:
             (prompt, emotion_enabled)
@@ -230,7 +235,10 @@ class MedUbiPromptBuilder:
             for msg in recent_history
         ]) if recent_history else "（無）"
         
-        # 6. 組合 Prompt
+        # 6. 小護士設備狀態
+        robot_state_info = self._get_robot_state_info(robot_state)
+        
+        # 7. 組合 Prompt
         prompt = f"""# 角色風格
 {style_content}
 
@@ -243,6 +251,9 @@ class MedUbiPromptBuilder:
 # 小護士 Action 說明
 {robot_action_spec}
 
+# 小護士設備狀態
+{robot_state_info}
+
 # 對話歷史
 {history_text}
 
@@ -251,6 +262,33 @@ class MedUbiPromptBuilder:
 """
 
         return prompt, emotion_enabled
+
+    def _get_robot_state_info(self, state: str) -> str:
+        """
+        根據小護士設備狀態生成對應的提示資訊
+
+        Args:
+            state: 設備狀態（available | busy | unknown）
+
+        Returns:
+            狀態說明文字
+        """
+        if state == "available":
+            return """**小護士當前狀態：available（空閒）**
+- 可以指派小護士執行新任務
+- 可以派遣小護士進行導航、取物等動作
+- 請根據用戶需求判斷是否需要小護士協助"""
+        elif state == "busy":
+            return """**小護士當前狀態：busy（忙碌）**
+- 小護士正在執行前一次任務
+- **只能指派「取消」動作**，讓小護士停止當前任務並返回櫃台
+- **不可指派新的導航或取物任務**
+- 如果用戶需要幫助，請用語言引導，等待小護士完成當前任務"""
+        else:  # unknown
+            return """**小護士當前狀態：unknown（未知）**
+- 無法確認小護士的當前狀態
+- **不可指派小護士進行任何任務**
+- 請用語言引導用戶，不要派遣小護士"""
 
     def _get_robot_action_spec(self) -> str:
         """
