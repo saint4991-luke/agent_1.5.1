@@ -335,7 +335,7 @@
 **範例：**
 ```json
 {
-    "ToUbiChan": "<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->不好意思，小護士正在服務其他用戶<sbr>請稍等一下，或我先用語言為您說明<sbr>",
+    "ToUbiChan": "<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->小護士正在忙<sbr>需要我取消小護士當前任務嗎？<sbr>",
     "ToBaxiaomi": {
         "Steps_Descripts": ""
     }
