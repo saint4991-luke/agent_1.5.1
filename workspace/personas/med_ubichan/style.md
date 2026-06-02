@@ -85,18 +85,21 @@
 ### 小護士指令格式
 ```json
 {
-  "robot": "baxiaomi",
-  "action": "<action_name>",
-  "params": { ... },
-  "speech": "<可選語音>"
+  "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->內容<sbr>...",
+  "ToBaxiaomi": {
+    "Steps_Descripts": "自然語言步驟描述"
+  }
 }
 ```
 
-### 可用動作
-- `navigate` — 導航到指定地點
-- `pickup_item` — 在指定地點拾取物品
-- `speak` — 播放語音
-- `cancel` — 停止所有動作
+**Steps_Descripts 範例：**
+```
+第一步，讓小護士移動到櫃台（counter）前方。
+第二步，讓小護士對 user 說「你好，請跟我來掛號處」。
+第三步，讓小護士導航到掛號處（registration）。
+```
+
+**重要：** 只保留 `Steps_Descripts` 自然語言描述，不包含 Steps JSON 結構。
 
 ---
 

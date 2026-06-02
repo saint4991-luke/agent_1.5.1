@@ -1,7 +1,7 @@
-# 🏥 醫療展 Virtual Human 輸出規格 v1.1
+# 🏥 醫療展 Virtual Human 輸出規格 v1.2
 
-**版本：** v1.1  
-**日期：** 2026-05-28  
+**版本：** v1.2  
+**日期：** 2026-06-02  
 **適用範圍：** 醫療展 UbiChan × 小護士 雙機器人協作系統  
 **參考規格：** AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf v1.1.0
 
@@ -11,7 +11,7 @@
 
 本規格定義醫療展 Virtual Human 的輸出格式，採用 **JSON 格式**，讓系統可以：
 - **解析 UbiChan 回應** - 包含情緒標籤、語言標籤、斷句符號
-- **解析小護士 Actions** - 包含導航、物品運送、語音播放等指令
+- **解析小護士 Actions** - 包含自然語言步驟描述
 - **雙機器人協作** - UbiChan 負責對話接待，小護士負責帶路引導
 
 ---
@@ -24,15 +24,6 @@
 {
     "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->內容<sbr>...",
     "ToBaxiaomi": {
-        "Steps": [
-            {
-                "action": "action_name",
-                "params": {
-                    "key": "value"
-                },
-                "speech": "語音內容或空字符串"
-            }
-        ],
         "Steps_Descripts": "自然語言步驟描述"
     }
 }
@@ -43,9 +34,10 @@
 | 欄位 | 必填 | 說明 | 範例 |
 |------|------|------|------|
 | `ToUbiChan` | ✅ | UbiChan 回應文字 | `<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好<sbr>請跟我來<sbr>` |
-| `ToBaxiaomi` | ✅ | 小護士指令物件 | 包含 Steps 和 Steps_Descripts |
-| `ToBaxiaomi.Steps` | ✅ | 步驟數組 | 每個步驟包含 action、params、speech |
+| `ToBaxiaomi` | ✅ | 小護士指令物件 | 包含 Steps_Descripts |
 | `ToBaxiaomi.Steps_Descripts` | ✅ | 自然語言步驟說明 | `"第一步，移動到櫃台。第二步，對 user 說話。"` |
+
+**重要：** 小護士指令**只保留** `Steps_Descripts` 自然語言描述，不包含 Steps JSON 結構。
 
 ---
 
@@ -158,146 +150,80 @@
 
 ---
 
-## 🤖 ToBaxiaomi.Steps 格式規則
+## 🤖 ToBaxiaomi.Steps_Descripts 格式規則
 
-### 支持的 Actions
+### 基本格式
 
-#### 1. navigate（導航）
+**Steps_Descripts** 使用自然語言描述小護士的執行步驟，格式為：
 
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| `action` | string | `"navigate"` |
-| `params.target` | string | 目標地點 ID（`counter`、`registration`、`pharmacy`） |
-| `speech` | string | 語音內容（可為空字符串） |
-
-**範例：**
-```json
-{
-    "action": "navigate",
-    "params": {"target": "registration"},
-    "speech": ""
-}
+```
+第一步，[動作描述]。第二步，[動作描述]。第三步，[動作描述]。
 ```
 
-#### 2. speak（播放語音）
+### 支持的動作類型
 
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| `action` | string | `"speak"` |
-| `params.speech` | string | 語音內容 |
-| `speech` | string | 語音內容（可為空字符串） |
+小護士支持以下動作：
 
-**範例：**
-```json
-{
-    "action": "speak",
-    "params": {"speech": "你好，請跟我來"},
-    "speech": ""
-}
+1. **移動/導航** - `移動到 [地點]`、`導航到 [地點]`
+2. **說話** - `對 [對象] 說「[語音內容]」`
+3. **拾取物品** - `拾取 [物品]`、`等待物品裝載`
+4. **取消動作** - `停止當前動作`、`返回櫃台`
+
+### 支持的地點
+
+| 地點 ID | 名稱 | 說明 |
+|--------|------|------|
+| `counter` | 櫃台 | Kiosk 前方，小護士待命區 |
+| `registration` | 掛號處 | 展場 A 區，模擬掛號服務 |
+| `pharmacy` | 藥局 | 展場 B 區，模擬藥局取藥 |
+
+### 步驟描述原則
+
+1. **必須包含實際說話內容**
+   - ❌ 錯誤：`第二步，對 user 說話。`
+   - ✅ 正確：`第二步，對 user 說「你好，請跟我來掛號處」。`
+
+2. **使用自然語言**
+   - 描述要像人類在說明流程
+   - 使用「讓小護士...」或直接用動作描述
+
+3. **步驟編號**
+   - 使用「第一步，... 第二步，... 第三步，...」格式
+   - 每個步驟用句號分隔
+
+### Steps_Descripts 範例
+
+#### 範例 1：掛號引導
+```
+第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 user 說「你好，請跟我來掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 user 說「掛號處到了，祝你掛號順利」。
 ```
 
-#### 3. pickup_item（拾取物品）
-
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| `action` | string | `"pickup_item"` |
-| `params.location` | string | 地點 ID |
-| `params.item` | string | 物品名稱 |
-| `speech` | string | 語音內容 |
-
-**範例：**
-```json
-{
-    "action": "pickup_item",
-    "params": {"location": "pharmacy", "item": "藥品"},
-    "speech": "藥劑師你好，請把藥品放到我的籃子"
-}
+#### 範例 2：拿藥引導
+```
+第一步，讓小護士移動到藥局（pharmacy）。第二步，讓小護士對藥劑師說「藥劑師你好，請把藥品放到我的籃子」。第三步，拾取藥品，對藥師說「完成後按確認按鈕」。第四步，讓小護士導航回櫃台（counter）。第五步，讓小護士對 user 說「藥品拿到了，請收好」。
 ```
 
-#### 4. cancel（停止）
+#### 範例 3：地點詢問（帶路）
+```
+第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 user 說「請跟我來，我帶你去掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 user 說「這裡就是掛號處，祝你掛號順利」。
+```
 
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| `action` | string | `"cancel"` |
-| `params` | object | 空物件 |
-| `speech` | string | 語音內容（可為空字符串） |
-
-**範例：**
-```json
-{
-    "action": "cancel",
-    "params": {},
-    "speech": ""
-}
+#### 範例 4：取消動作
+```
+第一步，停止小護士所有動作。第二步，對 user 說「我要回櫃台了」。第三步，移動到櫃台。
 ```
 
 ---
 
-## 📝 Steps_Descripts 格式規則
-
-**Steps_Descripts** 必須用自然語言描述每個步驟，使用「第一步，... 第二步，...」格式。
-
-### ⚠️ 重要規則：必須包含實際說話內容
-
-當步驟涉及「說話」動作時，**必須把實際說話內容補上**，不能只寫「對 user 說話」或「對藥劑師說話」。
-
-#### ❌ 錯誤範例（缺少實際說話內容）
-```
-第一步，移動到櫃台前方。第二步，對 user 說話。
-```
-
-#### ✅ 正確範例（包含實際說話內容）
-```
-第一步，移動到櫃台前方。第二步，對 user 說 你好，請跟我來掛號處。
-```
-
-```
-第一步，移動到藥局。第二步，對藥劑師說 藥劑師你好，請把藥品放到我的籃子。
-```
-
-### 完整範例
-
-```
-第一步，移動到櫃台前方。第二步，對 user 說 你好，請跟我來掛號處。第三步，導航到掛號處。第四步，到達後說 這裡是掛號處，請排隊。
-```
-
-```
-第一步，移動到藥局。第二步，對藥劑師說 藥劑師你好，請把藥品放到我的籃子。第三步，拾取藥品，對藥師說 完成後按確認按鈕。第四步，返回櫃台。第五步，對 user 說 藥品拿到了，請收好。
-```
-
----
-
-## 🎨 完整範例
+## 📝 完整輸出範例
 
 ### 範例 1：掛號引導
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，小護士會帶你去掛號處<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請人來帶你去掛號處<sbr>小護士會協助你前往，請稍等一下<sbr>",
     "ToBaxiaomi": {
-        "Steps": [
-            {
-                "action": "navigate",
-                "params": {"target": "counter"},
-                "speech": ""
-            },
-            {
-                "action": "speak",
-                "params": {"speech": "你好，請跟我來"},
-                "speech": ""
-            },
-            {
-                "action": "navigate",
-                "params": {"target": "registration"},
-                "speech": ""
-            },
-            {
-                "action": "speak",
-                "params": {"speech": "這裡是掛號處，請排隊"},
-                "speech": ""
-            }
-        ],
-        "Steps_Descripts": "第一步，移動到櫃台前方。第二步，對 user 說 你好，請跟我來。第三步，導航到掛號處。第四步，到達後說 這裡是掛號處，請排隊。"
+        "Steps_Descripts": "第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 user 說「你好，請跟我來掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 user 說「掛號處到了，祝你掛號順利」。"
     }
 }
 ```
@@ -306,36 +232,9 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡休息一下<sbr>我請小護士去幫你拿藥<sbr>很快就好<sbr>",
+    "ToUbiChan": "<!-- emotion>caring</emotion --><!-- lang>tw (zh)</lang -->你在這裡等一下<sbr>我幫你<sbr>我請小護士去藥局幫你拿藥<sbr>",
     "ToBaxiaomi": {
-        "Steps": [
-            {
-                "action": "navigate",
-                "params": {"target": "pharmacy"},
-                "speech": ""
-            },
-            {
-                "action": "speak",
-                "params": {"speech": "藥劑師你好，請把藥品放到我的籃子"},
-                "speech": ""
-            },
-            {
-                "action": "pickup_item",
-                "params": {"location": "pharmacy", "item": "藥品"},
-                "speech": ""
-            },
-            {
-                "action": "navigate",
-                "params": {"target": "counter"},
-                "speech": ""
-            },
-            {
-                "action": "speak",
-                "params": {"speech": "藥品拿回來了，請服用"},
-                "speech": ""
-            }
-        ],
-        "Steps_Descripts": "第一步，移動到藥局。第二步，對藥劑師說 藥劑師你好，請把藥品放到我的籃子。第三步，拾取藥品，對藥師說 完成後按確認按鈕。第四步，返回櫃台。第五步，對 user 說 藥品拿回來了，請服用。"
+        "Steps_Descripts": "第一步，讓小護士移動到藥局（pharmacy）。第二步，讓小護士對藥劑師說「藥劑師你好，請把藥品放到我的籃子」。第三步，拾取藥品，對藥師說「完成後按確認按鈕」。第四步，讓小護士導航回櫃台（counter）。第五步，讓小護士對 user 說「藥品拿到了，請收好」。"
     }
 }
 ```
@@ -344,21 +243,9 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->藥局在展場 B 區<sbr>我請小護士帶你過去<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>helpful</emotion --><!-- lang>tw (zh)</lang -->掛號處在展場 A 區<sbr>我請小護士帶你去<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
-        "Steps": [
-            {
-                "action": "navigate",
-                "params": {"target": "pharmacy"},
-                "speech": ""
-            },
-            {
-                "action": "speak",
-                "params": {"speech": "你好，請跟我來"},
-                "speech": ""
-            }
-        ],
-        "Steps_Descripts": "第一步，導航到藥局。第二步，對 user 說 你好，請跟我來。"
+        "Steps_Descripts": "第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 user 說「請跟我來，我帶你去掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 user 說「這裡就是掛號處，祝你掛號順利」。"
     }
 }
 ```
@@ -367,26 +254,20 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>neutral</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>請稍等一下<sbr>",
+    "ToUbiChan": "<!-- emotion>apologetic</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>不好意思造成困擾<sbr>",
     "ToBaxiaomi": {
-        "Steps": [
-            {
-                "action": "cancel",
-                "params": {},
-                "speech": ""
-            },
-            {
-                "action": "speak",
-                "params": {"speech": "我要回櫃台了"},
-                "speech": ""
-            },
-            {
-                "action": "navigate",
-                "params": {"target": "counter"},
-                "speech": ""
-            }
-        ],
-        "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 user 說 我要回櫃台了。第三步，移動到櫃台。"
+        "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 user 說「我要回櫃台了」。第三步，移動到櫃台。"
+    }
+}
+```
+
+### 範例 5：無需小護士協助（純對話）
+
+```json
+{
+    "ToUbiChan": "<!-- emotion>friendly</emotion --><!-- lang>tw (zh)</lang -->你好！我是醫療展的服務虛擬人 UbiChan<sbr>很高興見到你<sbr>今天有什麼可以幫你？<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": ""
     }
 }
 ```
@@ -395,94 +276,25 @@
 
 ## ⚠️ 注意事項
 
-### 1. JSON 格式
+1. **Steps_Descripts 必須是自然語言**
+   - 不要使用 JSON 格式
+   - 不要使用程式碼格式
+   - 使用人類可讀的中文描述
 
-- ✅ 必須是有效的 JSON 格式
-- ✅ 必須包含 `ToUbiChan` 和 `ToBaxiaomi` 兩個必要欄位
-- ✅ `ToBaxiaomi.Steps` 必須是數組
+2. **Steps_Descripts 可以為空**
+   - 如果不需要小護士協助，`Steps_Descripts` 可以是空字符串 `""`
+   - 但 `ToBaxiaomi` 物件必須存在
 
-### 2. ToUbiChan 格式
+3. **情緒標籤和語言標籤必須配對**
+   - 每個回應都必須包含情緒標籤和語言標籤
+   - 順序：先情緒，後語言
 
-- ✅ 必須使用 XML 註解格式的情緒標籤：`<!-- emotion>{emotion}</emotion -->`
-- ✅ 必須使用 XML 註解格式的語言標籤：`<!-- lang>{language_code}</lang -->`
-- ✅ 必須使用 `<sbr>` 進行斷句
-- ✅ 標籤順序：先 `emotion`，再 `lang`
-
-### 3. ToBaxiaomi.Steps 格式
-
-- ✅ 每個步驟必須包含 `action`、`params`、`speech` 三個欄位
-- ✅ `action` 必須是支持的 Action（`navigate`、`speak`、`pickup_item`、`cancel`）
-- ✅ `params` 必須是物件
-
-### 4. Steps_Descripts 格式
-
-- ✅ 必須是自然語言描述
-- ✅ 使用「第一步，... 第二步，...」格式
-- ✅ 必須與 Steps 數組對應
+4. **斷句符號 <sbr> 必須正確使用**
+   - 每句話結尾都要加上 `<sbr>`
+   - 遵循斷句規則（Hard/Medium/Soft breaks）
 
 ---
 
-## 🔧 後端解析
-
-### 解析流程（Python）
-
-```python
-import json
-import re
-
-def parse_llm_response(llm_response: str) -> dict:
-    """解析 LLM 輸出的 JSON 回應"""
-    try:
-        # 1. 嘗試直接解析 JSON
-        try:
-            data = json.loads(llm_response.strip())
-        except json.JSONDecodeError:
-            # 2. 如果失敗，嘗試提取 JSON 代碼塊
-            json_match = re.search(r'```json\s*(.*?)\s*```', llm_response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                data = json.loads(json_str.strip())
-            else:
-                # 3. 嘗試提取大括號內容
-                json_match = re.search(r'\{.*\}', llm_response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                    data = json.loads(json_str.strip())
-                else:
-                    return {"success": False, "error": "無法解析 JSON 格式"}
-        
-        # 4. 驗證必要欄位
-        if "ToUbiChan" not in data:
-            return {"success": False, "error": "缺少 ToUbiChan 欄位"}
-        
-        if "ToBaxiaomi" not in data:
-            return {"success": False, "error": "缺少 ToBaxiaomi 欄位"}
-        
-        return {"success": True, "data": data}
-    
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-```
-
----
-
-## 📊 版本歷史
-
-| 版本 | 日期 | 變更說明 |
-|------|------|----------|
-| v1.0 | 2026-05-27 | 初始版本，定義醫療展 Virtual Human JSON 輸出格式 |
-| v1.1 | 2026-05-28 | 更新情緒標籤和語言標籤格式，符合 AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf v1.1.0 |
-
----
-
-## 📚 參考文件
-
-- **AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf** v1.1.0
-  - Section 2: General Format
-  - Section 3: Sentence Breakdown Rules
-  - Section 4: Actions
-
----
-
-**維護者：** 蝦米 Agent 團隊  
-**最後更新：** 2026-05-28
+**版本：** v1.2  
+**最後更新：** 2026-06-02  
+**變更記錄：** 移除 Steps JSON 結構，只保留 Steps_Descripts 自然語言描述

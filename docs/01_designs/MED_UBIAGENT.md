@@ -232,10 +232,10 @@ UbiChan → 指令小護士：
          ┌────────────┴────────────┐
          │                         │
          ▼                         ▼
-┌─────────────────┐      ┌─────────────────┐
-│   UbiChan 回應   │      │   小護士指令     │
-│  (情緒標籤格式)  │      │  (JSON Action)  │
-└─────────────────┘      └────────┬────────┘
+┌─────────────────┐      ┌─────────────────────────┐
+│   UbiChan 回應   │      │   小護士指令             │
+│  (情緒標籤格式)  │      │  (自然語言步驟描述)      │
+└─────────────────┘      └────────┬────────────────┘
                                  │
                                  ▼
                       ┌─────────────────┐
@@ -247,14 +247,29 @@ UbiChan → 指令小護士：
                       └─────────────────┘
 ```
 
-### 3.2 小護士的 Tool 定義
+### 3.2 小護士的指令格式
 
-| Tool | 參數 | 說明 | 範例 |
-|------|------|------|------|
-| **navigate** | `target` (地點 ID)<br>`speech` (可選) | 導航到指定地點，可選播放語音 | `{"action": "navigate", "target": "registration", "speech": "請跟我來"}` |
-| **pickup_item** | `location` (地點 ID)<br>`item` (物品名稱)<br>`speech` | 在指定地點拾取物品，播放請求語音 | `{"action": "pickup_item", "location": "pharmacy", "item": "藥品", "speech": "請把藥品放到我的籃子，並按下按鈕"}` |
-| **speak** | `speech` | 播放指定語音 | `{"action": "speak", "speech": "祝您早日康復"}` |
-| **cancel** | `speech` (可選) | 停止所有動作，可選播放語音 | `{"action": "cancel", "speech": "我要回去櫃台了"}` |
+**輸出格式：** 使用自然語言步驟描述（Steps_Descripts）
+
+| 欄位 | 說明 | 範例 |
+|------|------|------|
+| **Steps_Descripts** | 自然語言步驟描述 | `"第一步，移動到櫃台。第二步，對 user 說「你好」。"` |
+
+**完整範例：**
+```json
+{
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的<sbr>我請人來帶你去<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": "第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 user 說「你好，請跟我來掛號處」。第三步，讓小護士導航到掛號處（registration）。"
+    }
+}
+```
+
+**支持的動作：**
+- **移動/導航** - `移動到 [地點]`、`導航到 [地點]`
+- **說話** - `對 [對象] 說「[語音內容]」`
+- **拾取物品** - `拾取 [物品]`、`等待物品裝載`
+- **取消動作** - `停止當前動作`、`返回櫃台`
 
 ### 3.3 UbiChan LLM Prompt 設計
 
@@ -278,10 +293,10 @@ UbiChan → 指令小護士：
 
 | Intent | 關鍵字 | 動作 | 小護士介入 |
 |--------|--------|------|-----------|
-| `registration` | 掛號、登記、報到 | 呼叫小護士帶路到掛號處 | ✅ navigate |
-| `pharmacy` | 拿藥、取藥、藥品 | 呼叫小護士去藥局取藥 | ✅ pickup_item |
-| `cancel` | 停止、取消、不要了 | 呼叫小護士取消動作 | ✅ cancel |
-| `info_location` | 哪裡、怎麼走、在哪 | **主動觸發小護士帶路** | ✅ navigate |
+| `registration` | 掛號、登記、報到 | 呼叫小護士帶路到掛號處 | ✅ Steps_Descripts |
+| `pharmacy` | 拿藥、取藥、藥品 | 呼叫小護士去藥局取藥 | ✅ Steps_Descripts |
+| `cancel` | 停止、取消、不要了 | 呼叫小護士取消動作 | ✅ Steps_Descripts |
+| `info_location` | 哪裡、怎麼走、在哪 | **主動觸發小護士帶路** | ✅ Steps_Descripts |
 | `info_other` | 請問、為什麼、什麼 | 直接回答資訊 | ❌ 無動作 |
 | `other` | 其他 | 禮貌回應或轉人工 | ❌ 無動作 |
 
@@ -290,33 +305,6 @@ UbiChan → 指令小護士：
 2. **物品運送**：當用戶需要拿取物品時，**小護士主動協助運送**
 3. **安撫話語**：UbiChan 在小護士執行任務時，**安撫用戶等待**
 4. **狀態回報**：小護士完成任務後，**主動回報並祝福**
-
-### 3.5 小護士 Action 格式
-
-**標準格式：**
-```json
-{
-  "robot": "baxiaomi",
-  "action": "<action_name>",
-  "params": {
-    // 動作參數
-  },
-  "speech": "<可選語音>"
-}
-```
-
-**完整範例：**
-```json
-{
-  "robot": "baxiaomi",
-  "action": "navigate",
-  "params": {
-    "target": "registration",
-    "speed": "normal"
-  },
-  "speech": "我帶你去掛號處，請跟我來"
-}
-```
 
 ---
 
@@ -370,33 +358,26 @@ UbiChan → 指令小護士：
 
 ### 4.2 小護士輸出格式（給引導機器人）
 
-**雙重輸出：**
-1. **JSON 指令** - 供機器人執行
-2. **自然語言步驟描述** - 供開發者/測試者理解流程
-
-#### 4.2.1 JSON 指令格式
+**輸出格式：** 自然語言步驟描述（Steps_Descripts）
 
 ```json
 {
-  "robot": "baxiaomi",
-  "action": "<action_name>",
-  "params": {
-    "target": "<location_id>",
-    "location": "<location_id>",
-    "item": "<item_name>"
-  },
-  "speech": "<可選語音>"
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->內容<sbr>...",
+    "ToBaxiaomi": {
+        "Steps_Descripts": "自然語言步驟描述"
+    }
 }
 ```
 
-#### 4.2.2 自然語言步驟描述格式
-
+**Steps_Descripts 格式：**
 ```
 第一步，讓小護士移動到 [地點]。
 第二步，讓小護士對 [對象] 說「[語音內容]」。
 第三步，讓小護士導航到 [地點]。
 第四步，讓小護士對 [對象] 說「[語音內容]」。
 ```
+
+**重要：** 只保留 `Steps_Descripts`，不包含 Steps JSON 結構。
 
 ### 4.3 完整輸出範例
 
