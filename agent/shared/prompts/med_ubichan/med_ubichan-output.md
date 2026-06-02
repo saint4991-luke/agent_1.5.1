@@ -299,6 +299,91 @@
 
 ---
 
+## 🤖 小護士設備狀態與應對策略
+
+**重要：** Prompt 中會包含小護士當前狀態（`available`、`busy`、`unknown`），LLM 必須根據狀態決定是否可以指派任務。
+
+### 狀態 1：available（空閒）
+
+**含義：** 小護士在櫃台待命，可以執行新任務
+
+**應對策略：**
+- ✅ 可以指派小護士執行新任務
+- ✅ 可以派遣小護士進行導航、取物等動作
+- ✅ 根據用戶需求判斷是否需要小護士協助
+
+**範例：**
+```json
+{
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請小護士帶你去掛號處<sbr>請跟著它走<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": "第一步，讓小護士移動到櫃台前方。第二步，對 user 說「請跟我來」。第三步，導航到掛號處。"
+    }
+}
+```
+
+### 狀態 2：busy（忙碌）
+
+**含義：** 小護士正在執行前一次任務
+
+**應對策略：**
+- ❌ **不可指派新的導航或取物任務**
+- ✅ **只能指派「取消」動作**，讓小護士停止當前任務並返回櫃台
+- ✅ 如果用戶需要幫助，請用語言引導，等待小護士完成當前任務
+- ✅ 安撫用戶情緒，說明小護士正在服務其他用戶
+
+**範例：**
+```json
+{
+    "ToUbiChan": "<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->不好意思，小護士正在服務其他用戶<sbr>請稍等一下，或我先用語言為您說明<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": ""
+    }
+}
+```
+
+**如果需要取消當前任務：**
+```json
+{
+    "ToUbiChan": "<!-- emotion>apologetic</emotion --><!-- lang>tw (zh)</lang -->好的，我先召回小護士<sbr>請稍等一下<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 user 說「我要回櫃台了」。第三步，移動到櫃台。"
+    }
+}
+```
+
+### 狀態 3：unknown（未知）
+
+**含義：** 無法確認小護士的當前狀態（例如：get_device_status() 發生 exception）
+
+**應對策略：**
+- ❌ **不可指派小護士進行任何任務**
+- ✅ 請用語言引導用戶，不要派遣小護士
+- ✅ 說明系統暫時無法確認小護士狀態
+- ✅ 提供替代方案（如語言引導、人工服務）
+
+**範例：**
+```json
+{
+    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->不好意思，系統暫時無法確認小護士的狀態<sbr>我先用語言為您說明路線<sbr>掛號處在展場 A 區，請往這個方向走<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": ""
+    }
+}
+```
+
+### 決策流程
+
+```
+用戶請求 → 檢查小護士狀態
+    ↓
+    ├─ available → 可以指派任務 → 生成 Steps_Descripts
+    ├─ busy → 只能取消或語言引導 → Steps_Descripts 為空 或 取消動作
+    └─ unknown → 不可指派任務 → Steps_Descripts 為空，純語言引導
+```
+
+---
+
 ## ⚠️ 注意事項
 
 1. **Steps_Descripts 必須是自然語言**
