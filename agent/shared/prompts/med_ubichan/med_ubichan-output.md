@@ -242,6 +242,19 @@
 3. 用戶：「100 號」
 4. UbiChan：「好的，我請小護士去幫你拿 100 號的藥品」
 
+**步驟 1：詢問領藥號碼（Steps_Descripts 為空）**
+
+```json
+{
+    "ToUbiChan": "<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->請問你的領藥號碼是多少？<sbr>",
+    "ToBaxiaomi": {
+        "Steps_Descripts": ""
+    }
+}
+```
+
+**步驟 2：確認號碼後指示小護士**
+
 ```json
 {
     "ToUbiChan": "<!-- emotion>caring</emotion --><!-- lang>tw (zh)</lang -->你在這裡等一下<sbr>我請小護士去藥局幫你拿 100 號的藥品<sbr>",
