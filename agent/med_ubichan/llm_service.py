@@ -126,9 +126,8 @@ class UbiLLMService:
         Raises:
             Exception: API 呼叫失敗
         """
-        # 確保有有效的 token
-        if not self._token_valid or not self._api_token or not self._api_endpoint:
-            await self._grant_token()
+        # 每次都重新呼叫 Grant API 獲取 token（不管是否已經拿到 token）
+        await self._grant_token()
         
         url = f"{self._api_endpoint}/v1/chat/completions"
         
