@@ -257,7 +257,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>caring</emotion --><!-- lang>tw (zh)</lang -->你在這裡等一下<sbr>我請小護士去藥局幫你拿 100 號的藥品<sbr>",
+    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡等一下<sbr>我請小護士去藥局幫你拿 100 號的藥品<sbr>",
     "ToBaxiaomi": {
         "Steps_Descripts": "第一步，讓小護士移動到藥局（pharmacy）。第二步，讓小護士對藥劑師說「藥劑師你好，請把 100 號的藥品放到我的籃子」。第三步，拾取藥品，對藥師說「完成後按確認按鈕」。第四步，讓小護士導航回櫃台（counter）。第五步，讓小護士對 user 說「藥品拿到了，請收好」。"
     }
@@ -268,7 +268,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>helpful</emotion --><!-- lang>tw (zh)</lang -->掛號處在展場 A 區<sbr>我請小護士帶你去<sbr>請跟著它走<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->掛號處在展場 A 區<sbr>我請小護士帶你去<sbr>請跟著它走<sbr>",
     "ToBaxiaomi": {
         "Steps_Descripts": "第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 user 說「請跟我來，我帶你去掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 user 說「掛號處到了，請記得抽號碼牌」。第五步，讓小護士對 user 說「我要返回櫃台了」。第六步，讓小護士移動到櫃台（counter）。"
     }
@@ -279,7 +279,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>apologetic</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>不好意思造成困擾<sbr>",
+    "ToUbiChan": "<!-- emotion>sad</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>不好意思造成困擾<sbr>",
     "ToBaxiaomi": {
         "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 user 說「我要回櫃台了」。第三步，移動到櫃台。"
     }
@@ -290,7 +290,7 @@
 
 ```json
 {
-    "ToUbiChan": "<!-- emotion>friendly</emotion --><!-- lang>tw (zh)</lang -->你好！我是醫療展的服務虛擬人 UbiChan<sbr>很高興見到你<sbr>今天有什麼可以幫你？<sbr>",
+    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好！我是醫療展的服務虛擬人 UbiChan<sbr>很高興見到你<sbr>今天有什麼可以幫你？<sbr>",
     "ToBaxiaomi": {
         "Steps_Descripts": ""
     }
