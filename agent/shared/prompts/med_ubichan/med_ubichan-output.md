@@ -383,7 +383,7 @@
 **範例：**
 ```json
 {
-    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->不好意思，系統暫時無法確認小護士的狀態<sbr>我先用語言為您說明路線<sbr>掛號處在展場 A 區，請往這個方向走<sbr>",
+    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->不好意思，目前無法確認小護士的狀態<sbr>",
     "ToBaxiaomi": {
         "Steps_Descripts": ""
     }
