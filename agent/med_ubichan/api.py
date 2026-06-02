@@ -174,7 +174,8 @@ async def generate_med_ubichan_stream(
     session_id: str,
     persona_config: dict,
     session_store,
-    robot_state: str = "available"
+    robot_state: str = "available",
+    chat_start_time: float = None
 ):
     """
     醫療展 Virtual Human STREAM 生成器（純 LLM 版）
@@ -189,13 +190,19 @@ async def generate_med_ubichan_stream(
         persona_config: 醫療展 Persona 配置
         session_store: Session Store 實例
         robot_state: 小護士設備狀態（available | busy | unknown）
+        chat_start_time: chat() API 被呼叫的時間戳（用於計算總時間）
 
     Yields:
         SSE 格式事件
     """
     global prompt_builder
 
-    start_time = asyncio.get_event_loop().time()
+    # 如果有傳入 chat_start_time，則使用它；否則使用當前時間
+    if chat_start_time:
+        start_time = chat_start_time
+    else:
+        start_time = asyncio.get_event_loop().time()
+    
     user_message = request.get_message()
 
     # 獲取時間戳
@@ -279,14 +286,14 @@ async def generate_med_ubichan_stream(
             # 不中斷流程，僅記錄錯誤
 
     # ========== 階段 4: 發送 done 事件（含 [DONE] 標記） ==========
-    total_time = int((time.time() - start_time) * 1000)
+    total_time_seconds = time.time() - start_time
     done_event = {
         "event": "done",
         "created": created,
         "id": event_id,
         "timing": {
             "llm_ms": llm_time,
-            "total_ms": total_time
+            "total_s": round(total_time_seconds, 3)
         }
     }
     yield format_med_ubichan_sse(done_event)
@@ -310,7 +317,7 @@ async def generate_med_ubichan_stream(
     except Exception as e:
         print(f"⚠️ 保存助手回應失敗：{e}")
 
-    print(f"📊 Session: {session_id} | TIMING: total={total_time}ms")
+    print(f"📊 Session: {session_id} | TIMING: total={round(total_time_seconds, 3)}s")
 
 
 # ============= API 端點 =============
@@ -437,14 +444,18 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
         print(f"⚠️ 檢查小護士狀態失敗：{e}")
         robot_state = "unknown"
 
-    # 5. 返回 STREAM 回應（用戶消息將在 generate_med_ubichan_stream() 成功後保存，並傳入 robot_state）
+    # 5. 記錄開始時間（用於計算總時間）
+    chat_start_time = time.time()
+
+    # 6. 返回 STREAM 回應（用戶消息將在 generate_med_ubichan_stream() 成功後保存，並傳入 robot_state 和 chat_start_time）
     return StreamingResponse(
         generate_med_ubichan_stream(
             request=request,
             session_id=session_id,
             persona_config=config,
             session_store=session_store,
-            robot_state=robot_state
+            robot_state=robot_state,
+            chat_start_time=chat_start_time
         ),
         media_type="text/event-stream",
         headers={
