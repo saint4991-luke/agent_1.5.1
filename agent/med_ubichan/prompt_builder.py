@@ -1,16 +1,17 @@
 """
 Prompt Builder - 醫療展 Virtual Human (UbiChan × 小護士)
 
-根據 MED_UBIAGENT 規格文檔 v1.0，構建完整的 Prompt 並解析 LLM 輸出。
+根據 MED_UBIAGENT 規格文檔 v1.2，構建完整的 Prompt 並解析 LLM 輸出。
 
-輸出格式：
+輸出格式（v1.2）：
 {
-    "ToUbiChan": "<情緒><語言>內容<sbr>...",
+    "ToUbiChan": "<!-- emotion>xxx</emotion --><!-- lang>xxx</lang -->內容<sbr>...",
     "ToBaxiaomi": {
-        "Steps": [...],
-        "Steps_Descripts": "..."
+        "Steps_Descripts": "自然語言步驟描述"
     }
 }
+
+注意：v1.2 已移除 Steps JSON 結構，只保留 Steps_Descripts 自然語言描述。
 """
 
 from pathlib import Path
@@ -351,19 +352,12 @@ class MedUbiPromptBuilder:
 ```
 
 ## 步驟組合原則
-1. 導航任務：navigate → speak → navigate → speak
-   - 第一步：移動到櫃台前方
-   - 第二步：對 user 說話
-   - 第三步：導航到目標地點
-   - 第四步：到達後說話
-2. 取物任務：navigate → speak → pickup_item → navigate → speak
-   - 第一步：移動到物品地點
-   - 第二步：對工作人員說話
-   - 第三步：拾取物品
-   - 第四步：返回櫃台
-   - 第五步：對 user 說話
-3. 每個步驟的 speech 可以是空字符串 ""（如果不需要說話）
-4. Steps_Descripts 必須用自然語言描述每個步驟，使用「第一步，... 第二步，...」格式
+1. 導航任務：移動到櫃台前方 → 對 user 說話 → 導航到目標地點 → 到達後說話
+2. 取物任務：移動到物品地點 → 對工作人員說話 → 拾取物品 → 返回櫃台 → 對 user 說話
+3. Steps_Descripts 必須用自然語言描述每個步驟，使用「第一步，... 第二步，... 第三步，...」格式
+4. 每個步驟必須包含實際說話內容（如果該步驟需要說話）
+   - 正確範例：「第二步，對 user 說『你好，請跟我來掛號處』」
+   - 錯誤範例：「第二步，對 user 說話」（缺少實際說話內容）
 """
 
 
@@ -437,14 +431,7 @@ class MedUbiOutputParser:
                     "error": "ToBaxiaomi 必須是物件"
                 }
 
-            if "Steps" not in to_baxiaomi:
-                return {
-                    "success": False,
-                    "ToUbiChan": data.get("ToUbiChan"),
-                    "ToBaxiaomi": None,
-                    "error": "ToBaxiaomi 缺少 Steps 欄位"
-                }
-
+            # 只驗證 Steps_Descripts（Steps 已移除）
             if "Steps_Descripts" not in to_baxiaomi:
                 return {
                     "success": False,
@@ -453,16 +440,7 @@ class MedUbiOutputParser:
                     "error": "ToBaxiaomi 缺少 Steps_Descripts 欄位"
                 }
 
-            # 6. 驗證 Steps 是數組
-            if not isinstance(to_baxiaomi.get("Steps"), list):
-                return {
-                    "success": False,
-                    "ToUbiChan": data.get("ToUbiChan"),
-                    "ToBaxiaomi": None,
-                    "error": "Steps 必須是數組"
-                }
-
-            # 7. 成功解析
+            # 6. 成功解析
             return {
                 "success": True,
                 "ToUbiChan": data.get("ToUbiChan"),
