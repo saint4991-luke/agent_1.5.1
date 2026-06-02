@@ -304,6 +304,7 @@ class MedUbiPromptBuilder:
   - counter: 櫃台
   - registration: 掛號處
   - pharmacy: 藥局
+  - charging: 充電點
 - 範例：
 ```json
 {
