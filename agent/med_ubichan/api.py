@@ -8,6 +8,10 @@ API 端點 - 醫療展 Virtual Human Agent (UbiChan × 小護士)
 根據 MED_UBIAGENT 規格文檔 v1.0 實現
 """
 
+# 設置 Log 導向（必須在 import 其他模組之前）
+from .log_redirector import setup_logging
+setup_logging("med_ubichan")
+
 from fastapi import APIRouter, HTTPException, FastAPI, Cookie
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
