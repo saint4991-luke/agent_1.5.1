@@ -307,8 +307,7 @@ async def generate_med_ubichan_stream(
     # 保存助手回應到 Session（用戶消息已在前面保存）
     try:
         assistant_response = {
-            "ubichan": ubichan_output,
-            "robot_steps_desc": robot_steps_desc
+            "ubichan": ubichan_output
         }
         session_store.add_message(
             session_id,
