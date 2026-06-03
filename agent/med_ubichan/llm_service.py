@@ -332,7 +332,7 @@ class MedUbiLLMService(UbiLLMService):
             )
             
             # 解析 JSON
-            from .prompt_builder import MedUbiOutputParser
+            from prompt_builder import MedUbiOutputParser
             parser = MedUbiOutputParser()
             parsed_data = parser.parse_llm_response(llm_response)
             
