@@ -9,7 +9,7 @@ API 端點 - 醫療展 Virtual Human Agent (UbiChan × 小護士)
 """
 
 # 設置 Log 導向（必須在 import 其他模組之前）
-from .log_redirector import setup_logging
+from log_redirector import setup_logging
 setup_logging("med_ubichan")
 
 from fastapi import APIRouter, HTTPException, FastAPI, Cookie
@@ -34,13 +34,13 @@ from block_chunker import BlockChunker
 sys.path.insert(0, str(Path(__file__).parent.parent / 'tools'))
 
 # 醫療展專用模組
-from .config_loader import MedUbiConfigLoader
-from .output_formatter import MedUbiOutputFormatter
+from config_loader import MedUbiConfigLoader
+from output_formatter import MedUbiOutputFormatter
 # Prompt Builder 和 LLM Service
-from .prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser, PromptLoader
-from .llm_service import MedUbiLLMService, create_llm_service
+from prompt_builder import MedUbiPromptBuilder, MedUbiOutputParser, PromptLoader
+from llm_service import MedUbiLLMService, create_llm_service
 # Device Service
-from .device_service import DeviceService, send_intent_to_device
+from device_service import DeviceService, send_intent_to_device
 import json as json_module
 
 
@@ -432,7 +432,7 @@ async def chat(request: ChatRequest, session_id: str = Cookie(None)):
     print("🔍 檢查小護士設備狀態...")
     robot_state = "unknown"  # 預設為 unknown
     try:
-        from .device_service import DeviceService
+        from device_service import DeviceService
         device_service = DeviceService()
         device_status = await device_service.get_device_status()
         print(f"📊 小護士狀態：{device_status}")
