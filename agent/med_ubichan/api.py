@@ -112,7 +112,7 @@ class ChatResponse(BaseModel):
     lang: Optional[str] = None
     persona_id: str
     robot_action: Optional[Dict[str, Any]] = None  # 小護士 Action
-    robot_steps: Optional[str] = None  # 自然語言步驟
+    robot_steps_desc: Optional[str] = None  # 自然語言步驟描述（Steps_Descripts）
     timings: Optional[Dict[str, Any]] = None
     usage: Optional[Dict[str, Any]] = None
 
@@ -256,7 +256,6 @@ async def generate_med_ubichan_stream(
     print(f"✅ LLM 生成成功 ({llm_time}ms)")
 
     ubichan_output = llm_result["ubichan_output"]
-    robot_steps = llm_result["robot_steps"]
     robot_steps_desc = llm_result["robot_steps_descripts"]
 
     # ========== 階段 1.5: 保存用戶消息到 Session（LLM 成功後） ==========
@@ -309,7 +308,6 @@ async def generate_med_ubichan_stream(
     try:
         assistant_response = {
             "ubichan": ubichan_output,
-            "robot_steps": robot_steps,
             "robot_steps_desc": robot_steps_desc
         }
         session_store.add_message(
@@ -578,7 +576,6 @@ async def generate_response_with_llm(
         {
             "success": bool,
             "ubichan_output": str,
-            "robot_steps": list,
             "robot_steps_descripts": str,
             "error": str or None
         }
@@ -614,7 +611,6 @@ async def generate_response_with_llm(
                 return {
                     "success": False,
                     "ubichan_output": None,
-                    "robot_steps": None,
                     "robot_steps_descripts": None,
                     "error": result['error']
                 }
@@ -634,19 +630,16 @@ async def generate_response_with_llm(
                 return {
                     "success": False,
                     "ubichan_output": None,
-                    "robot_steps": None,
                     "robot_steps_descripts": None,
                     "error": parsed_data["error"]
                 }
 
         # 3. 提取數據（無需額外驗證）
         ubichan_content = parsed_data["ToUbiChan"]
-        steps = parsed_data["ToBaxiaomi"].get("Steps")
 
         return {
             "success": True,
             "ubichan_output": ubichan_content,
-            "robot_steps": steps,
             "robot_steps_descripts": parsed_data["ToBaxiaomi"].get("Steps_Descripts"),
             "error": None
         }
