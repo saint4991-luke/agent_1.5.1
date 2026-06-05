@@ -258,6 +258,10 @@ async def generate_med_ubichan_stream(
     ubichan_output = llm_result["ubichan_output"]
     robot_steps_desc = llm_result["robot_steps_descripts"]
 
+    # 替換特殊字元：&lt;&lt; → &lt;, &gt;&gt; → &gt;
+    if ubichan_output:
+        ubichan_output = ubichan_output.replace("&lt;&lt;", "&lt;").replace("&gt;&gt;", "&gt;")
+
     # ========== 階段 1.5: 保存用戶消息到 Session（LLM 成功後） ==========
     try:
         session_store.add_message(session_id, "user", user_message)
