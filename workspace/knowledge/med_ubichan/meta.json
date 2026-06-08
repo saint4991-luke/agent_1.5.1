@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-06-08",
+  "knowledge_id": "med_ubichan",
+  "description": "優必達護理長 FAQ 知識庫",
+  "files": [
+    {
+      "name": "faq.txt",
+      "summary": "優必達護理長常見問答，涵蓋展覽介紹、AI 虛擬人互動、小護士機器人功能、帶路領藥體驗、衛教知識",
+      "keywords": ["展覽", "互動", "AI 虛擬人", "小護士", "機器人", "帶路", "領藥", "衛教", "血壓", "感冒", "伸展", "照護"],
+      "size_kb": 4
+    }
+  ]
+}

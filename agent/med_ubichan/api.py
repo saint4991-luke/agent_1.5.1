@@ -220,10 +220,49 @@ async def generate_med_ubichan_stream(
     # 獲取對話歷史
     conversation_history = session_store.get_messages(session_id)
 
-    # 獲取知識庫內容（如果需要）
+    # 獲取知識庫內容（根據 persona_config 的 knowledge 設定）
     knowledge_content = None
     knowledge_meta = None
-    # TODO: 根據 persona_config 載入知識庫
+    
+    # 檢查是否啟用知識庫
+    if persona_config.get('knowledge', {}).get('enabled', False):
+        try:
+            from pathlib import Path
+            from agent.virtual_human.knowledge.retriever import KnowledgeRetriever
+            
+            # 獲取知識庫資料夾列表
+            knowledge_folders = persona_config.get('knowledge', {}).get('folders', [])
+            
+            if knowledge_folders:
+                # 使用 MultiKnowledgeRetriever 檢索多個知識庫
+                from agent.virtual_human.knowledge.retriever import MultiKnowledgeRetriever
+                
+                # 獲取 workspace 路徑
+                workspace_path = prompt_builder.workspace_path if prompt_builder else Path("/workspace")
+                knowledge_base_path = workspace_path / "knowledge"
+                
+                # 創建多知識庫檢索器
+                multi_retriever = MultiKnowledgeRetriever(
+                    knowledge_ids=knowledge_folders,
+                    base_path=str(knowledge_base_path),
+                    llm_client=llm_service
+                )
+                
+                # 執行檢索
+                print(f"🔍 檢索知識庫：{knowledge_folders}")
+                rag_result = multi_retriever.query(user_message)
+                
+                knowledge_content = rag_result.get("content", "")
+                knowledge_meta = rag_result.get("files", [])
+                
+                if knowledge_content:
+                    print(f"✅ 知識庫檢索成功：{len(knowledge_content)} 字，使用文件：{knowledge_meta}")
+                else:
+                    print(f"⚠️ 知識庫檢索無相關內容")
+                    
+        except Exception as e:
+            print(f"⚠️ 知識庫檢索失敗：{e}")
+            # 不中斷流程，繼續處理
 
     # 調用 LLM 生成（LLM 自行判斷意圖，並根據小護士狀態決定是否可以指派任務）
     llm_result = await generate_response_with_llm(
