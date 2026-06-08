@@ -71,6 +71,7 @@ med_expo:
 knowledge:
   enabled: true
   folders:
+    - "med_ubichan/"
     - "medical_expo/"
     - "hospital_services/"
 
