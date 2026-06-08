@@ -644,6 +644,7 @@ async def generate_response_with_llm(
         if llm_service and hasattr(llm_service, 'generate_med_ubichan_response'):
             result = await llm_service.generate_med_ubichan_response(
                 prompt=prompt,
+                user_message=user_message,
                 conversation_history=conversation_history,
                 temperature=0.7,
                 max_tokens=2048

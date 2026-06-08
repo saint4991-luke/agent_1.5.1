@@ -239,7 +239,7 @@ class MedUbiPromptBuilder:
         # 6. 小護士設備狀態
         robot_state_info = self._get_robot_state_info(robot_state)
         
-        # 7. 組合 Prompt
+        # 7. 組合 Prompt（不包含用戶問題，用戶問題將在 api.py 中作為 "role": "user" 傳遞）
         prompt = f"""# 角色風格
 {style_content}
 
@@ -257,9 +257,6 @@ class MedUbiPromptBuilder:
 
 # 對話歷史
 {history_text}
-
-# 用戶問題
-{user_message}
 """
 
         return prompt, emotion_enabled

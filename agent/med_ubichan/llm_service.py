@@ -290,6 +290,7 @@ class MedUbiLLMService(UbiLLMService):
     async def generate_med_ubichan_response(
         self,
         prompt: str,
+        user_message: str,
         conversation_history: List[Dict[str, str]] = None,
         temperature: float = 0.7,
         max_tokens: int = 2048
@@ -298,7 +299,8 @@ class MedUbiLLMService(UbiLLMService):
         生成醫療展 Virtual Human 回應
         
         Args:
-            prompt: 完整的 Prompt
+            prompt: 完整的 Prompt（作為 system content）
+            user_message: 用戶問題（作為 user content）
             conversation_history: 對話歷史（可選）
             temperature: 溫度參數
             max_tokens: 最大 token 數
@@ -316,11 +318,11 @@ class MedUbiLLMService(UbiLLMService):
             messages = [
                 {
                     "role": "system",
-                    "content": "你是一個醫療展 Virtual Human 助手，負責生成 UbiChan 和小護士的協作回應。請嚴格按照 JSON 格式輸出。"
+                    "content": prompt
                 },
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": user_message
                 }
             ]
             
