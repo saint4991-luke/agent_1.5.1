@@ -248,8 +248,10 @@
 **步驟 1：詢問領藥號碼（無小護士任務）**
 
 ```
-<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->請問你的領藥號碼是多少？<sbr>
+<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->請問你的領藥號碼是多少？<sbr>"ToBaxiaomi:"
 ```
+
+**注意：** 即使不需要小護士協助，也要加上 `"ToBaxiaomi:"` 標記（後面不帶文字），表示明確不需要小護士執行任務。
 
 **步驟 2：確認號碼後指示小護士**
 
