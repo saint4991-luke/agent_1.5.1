@@ -364,10 +364,14 @@ class MedUbiOutputParser:
     @staticmethod
     def parse_llm_response(llm_response: str) -> Dict[str, Any]:
         """
-        解析 LLM 輸出的 JSON 回應
+        解析 LLM 輸出的字串回應
+
+        輸出格式（字串版本）：
+        <!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->護理長回應內容<sbr>
+        "ToBaxiaomi:"第一步，... 第二步，..."
 
         Args:
-            llm_response: LLM 返回的文字（可能包含 JSON）
+            llm_response: LLM 返回的字串
 
         Returns:
             {
@@ -378,80 +382,79 @@ class MedUbiOutputParser:
             }
         """
         try:
-            # 1. 嘗試直接解析 JSON
-            try:
-                data = json.loads(llm_response.strip())
-            except json.JSONDecodeError:
-                # 2. 如果失敗，嘗試提取 JSON 代碼塊
-                json_match = re.search(r'```json\s*(.*?)\s*```', llm_response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(1)
-                    data = json.loads(json_str.strip())
-                else:
-                    # 3. 嘗試提取大括號內容
-                    json_match = re.search(r'\{.*\}', llm_response, re.DOTALL)
-                    if json_match:
-                        json_str = json_match.group(0)
-                        data = json.loads(json_str.strip())
-                    else:
-                        return {
-                            "success": False,
-                            "ToUbiChan": None,
-                            "ToBaxiaomi": None,
-                            "error": "無法解析 JSON 格式"
-                        }
-
-            # 4. 驗證必要欄位
-            if "ToUbiChan" not in data:
+            # 1. 檢查是否包含 "ToBaxiaomi:" 標記
+            to_baxiaomi_marker = "ToBaxiaomi:"
+            
+            if to_baxiaomi_marker in llm_response:
+                # 分割成兩部分：ToUbiChan 和 ToBaxiaomi
+                parts = llm_response.split(to_baxiaomi_marker, 1)
+                ubichan_part = parts[0].strip()
+                baxiaomi_part = parts[1].strip() if len(parts) > 1 else ""
+                
+                # 移除 ToBaxiaomi 部分的前後引號（如果有）
+                if baxiaomi_part.startswith('"') and baxiaomi_part.endswith('"'):
+                    baxiaomi_part = baxiaomi_part[1:-1]
+                
+                # 2. 驗證 ToUbiChan 部分包含必要的情緒和語言標籤
+                has_emotion = '<!-- emotion' in ubichan_part or '<!--emotion' in ubichan_part
+                has_lang = '<!-- lang' in ubichan_part or '<!--lang' in ubichan_part
+                
+                if not has_emotion:
+                    return {
+                        "success": False,
+                        "ToUbiChan": None,
+                        "ToBaxiaomi": None,
+                        "error": "缺少情緒標籤 <!-- emotion>...</emotion -->"
+                    }
+                
+                if not has_lang:
+                    return {
+                        "success": False,
+                        "ToUbiChan": ubichan_part,
+                        "ToBaxiaomi": None,
+                        "error": "缺少語言標籤 <!-- lang>...</lang -->"
+                    }
+                
+                # 3. 成功解析
                 return {
-                    "success": False,
-                    "ToUbiChan": None,
-                    "ToBaxiaomi": None,
-                    "error": "缺少 ToUbiChan 欄位"
+                    "success": True,
+                    "ToUbiChan": ubichan_part,
+                    "ToBaxiaomi": {
+                        "Steps_Descripts": baxiaomi_part
+                    },
+                    "error": None
+                }
+            else:
+                # 沒有 ToBaxiaomi 標記，只返回 ToUbiChan 部分
+                # 驗證是否包含必要的情緒和語言標籤
+                has_emotion = '<!-- emotion' in llm_response or '<!--emotion' in llm_response
+                has_lang = '<!-- lang' in llm_response or '<!--lang' in llm_response
+                
+                if not has_emotion:
+                    return {
+                        "success": False,
+                        "ToUbiChan": None,
+                        "ToBaxiaomi": None,
+                        "error": "缺少情緒標籤 <!-- emotion>...</emotion -->"
+                    }
+                
+                if not has_lang:
+                    return {
+                        "success": False,
+                        "ToUbiChan": llm_response,
+                        "ToBaxiaomi": None,
+                        "error": "缺少語言標籤 <!-- lang>...</lang -->"
+                    }
+                
+                return {
+                    "success": True,
+                    "ToUbiChan": llm_response,
+                    "ToBaxiaomi": {
+                        "Steps_Descripts": ""
+                    },
+                    "error": None
                 }
 
-            if "ToBaxiaomi" not in data:
-                return {
-                    "success": False,
-                    "ToUbiChan": data.get("ToUbiChan"),
-                    "ToBaxiaomi": None,
-                    "error": "缺少 ToBaxiaomi 欄位"
-                }
-
-            # 5. 驗證 ToBaxiaomi 結構
-            to_baxiaomi = data.get("ToBaxiaomi")
-            if not isinstance(to_baxiaomi, dict):
-                return {
-                    "success": False,
-                    "ToUbiChan": data.get("ToUbiChan"),
-                    "ToBaxiaomi": None,
-                    "error": "ToBaxiaomi 必須是物件"
-                }
-
-            # 只驗證 Steps_Descripts（Steps 已移除）
-            if "Steps_Descripts" not in to_baxiaomi:
-                return {
-                    "success": False,
-                    "ToUbiChan": data.get("ToUbiChan"),
-                    "ToBaxiaomi": None,
-                    "error": "ToBaxiaomi 缺少 Steps_Descripts 欄位"
-                }
-
-            # 6. 成功解析
-            return {
-                "success": True,
-                "ToUbiChan": data.get("ToUbiChan"),
-                "ToBaxiaomi": to_baxiaomi,
-                "error": None
-            }
-
-        except json.JSONDecodeError as e:
-            return {
-                "success": False,
-                "ToUbiChan": None,
-                "ToBaxiaomi": None,
-                "error": f"JSON 解析錯誤：{str(e)}"
-            }
         except Exception as e:
             return {
                 "success": False,

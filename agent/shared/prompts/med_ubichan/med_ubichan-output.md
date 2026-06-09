@@ -1,7 +1,7 @@
-# 🏥 醫療展 Virtual Human 輸出規格 v1.2
+# 🏥 醫療展 Virtual Human 輸出規格 v1.3
 
-**版本：** v1.2  
-**日期：** 2026-06-02  
+**版本：** v1.3  
+**日期：** 2026-06-09  
 **適用範圍：** 醫療展護理長 × 小護士 雙機器人協作系統  
 **參考規格：** AIAGENT-VirtualAvatarTextStreamFormatSpecification-Reference.pdf v1.1.0
 
@@ -9,35 +9,35 @@
 
 ## 🎯 概述
 
-本規格定義醫療展 Virtual Human 的輸出格式，採用 **JSON 格式**，讓系統可以：
+本規格定義醫療展 Virtual Human 的輸出格式，採用 **純字串格式**，讓系統可以：
 - **解析護理長回應** - 包含情緒標籤、語言標籤、斷句符號
 - **解析小護士 Actions** - 包含自然語言步驟描述
 - **雙機器人協作** - 護理長負責對話接待，小護士負責帶路引導
 
 ---
 
-## 📐 JSON 格式定義
+## 📐 字串格式定義
 
 ### 完整格式
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->內容<sbr>...",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "自然語言步驟描述"
-    }
-}
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->護理長回應內容<sbr>
+"ToBaxiaomi:"第一步，... 第二步，..."
 ```
 
 ### 欄位說明
 
-| 欄位 | 必填 | 說明 | 範例 |
+| 部分 | 必填 | 說明 | 範例 |
 |------|------|------|------|
-| `ToUbiChan` | ✅ | 護理長回應文字 | `<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好<sbr>請跟我來<sbr>` |
-| `ToBaxiaomi` | ✅ | 小護士指令物件 | 包含 Steps_Descripts |
-| `ToBaxiaomi.Steps_Descripts` | ✅ | 自然語言步驟說明 | `"第一步，移動到櫃台。第二步，對 來賓 說話。"` |
+| 情緒標籤 | ✅ | `<!-- emotion>...</emotion -->` | `<!-- emotion>happy</emotion -->` |
+| 語言標籤 | ✅ | `<!-- lang>...</lang -->` | `<!-- lang>tw (zh)</lang -->` |
+| 護理長回應 | ✅ | 包含 `<sbr>` 斷句 | `你好<sbr>請跟我來<sbr>` |
+| ToBaxiaomi 標記 | ✅ | `"ToBaxiaomi:"` + 步驟描述 | `"ToBaxiaomi:"第一步，移動到櫃台。"` |
 
-**重要：** 小護士指令**只保留** `Steps_Descripts` 自然語言描述，不包含 Steps JSON 結構。
+**重要：**
+- 使用 `"ToBaxiaomi:"` 標記分隔護理長回應和小護士步驟
+- 小護士步驟描述使用自然語言，不需要 JSON 格式
+- 如果不需要小護士協助，可以省略 `"ToBaxiaomi:"` 部分
 
 ---
 
@@ -223,18 +223,14 @@
 
 ### 範例 1：掛號引導
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請人來帶你去掛號處<sbr>小護士會協助你前往，請稍等一下<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 來賓 說「你好，請跟我來掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 來賓 說「掛號處到了，請記得抽號碼牌」。第五步，讓小護士對 來賓 說「我要返回櫃台了」。第六步，讓小護士移動到櫃台（counter）。"
-    }
-}
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請人來帶你去掛號處<sbr>小護士會協助你前往，請稍等一下<sbr>
+"ToBaxiaomi:"第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 來賓 說「你好，請跟我來掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 來賓 說「掛號處到了，請記得抽號碼牌」。第五步，讓小護士對 來賓 說「我要返回櫃台了」。第六步，讓小護士移動到櫃台（counter）。"
 ```
 
 ### 範例 2：拿藥引導
 
-**重要：** 護理長必須先詢問來賓領藥號碼，確認後才指示小護士。
+**重要：** 護理長必須先詢問來賓領藥號碼（例如：100 號），確認後才指示小護士去藥局。
 
 **對話流程：**
 1. 來賓：「我要領藥」
@@ -244,70 +240,44 @@
 
 **步驟 1：詢問領藥號碼（Steps_Descripts 為空）**
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->請問你的領藥號碼是多少？<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": ""
-    }
-}
+```
+<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->請問你的領藥號碼是多少？<sbr>
 ```
 
 **步驟 2：確認號碼後指示小護士**
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡等一下<sbr>我請小護士去藥局幫你拿 100 號的藥品<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，讓小護士移動到藥局（pharmacy）。第二步，讓小護士對藥劑師說「藥劑師你好，請把 100 號的藥品放到我的籃子」。第三步，拾取藥品，對藥師說「完成後按確認按鈕」。第四步，讓小護士導航回櫃台（counter）。第五步，讓小護士對 來賓 說「藥品拿到了，請收好」。"
-    }
-}
+```
+<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->你在這裡等一下<sbr>我請小護士去藥局幫你拿 100 號的藥品<sbr>
+"ToBaxiaomi:"第一步，讓小護士移動到藥局（pharmacy）。第二步，讓小護士對藥劑師說「藥劑師你好，請把 100 號的藥品放到我的籃子」。第三步，拾取藥品，對藥師說「完成後按確認按鈕」。第四步，讓小護士導航回櫃台（counter）。第五步，讓小護士對 來賓 說「藥品拿到了，請收好」。"
 ```
 
 ### 範例 3：地點詢問
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->掛號處在展場 A 區<sbr>我請小護士帶你去<sbr>請跟著它走<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 來賓 說「請跟我來，我帶你去掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 來賓 說「掛號處到了，請記得抽號碼牌」。第五步，讓小護士對 來賓 說「我要返回櫃台了」。第六步，讓小護士移動到櫃台（counter）。"
-    }
-}
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->掛號處在展場 A 區<sbr>我請小護士帶你去<sbr>請跟著它走<sbr>
+"ToBaxiaomi:"第一步，讓小護士移動到櫃台（counter）前方。第二步，讓小護士對 來賓 說「請跟我來，我帶你去掛號處」。第三步，讓小護士導航到掛號處（registration）。第四步，讓小護士對 來賓 說「掛號處到了，請記得抽號碼牌」。第五步，讓小護士對 來賓 說「我要返回櫃台了」。第六步，讓小護士移動到櫃台（counter）。"
 ```
 
 ### 範例 4：取消動作
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>sad</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>不好意思造成困擾<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 來賓 說「我要回櫃台了」。第三步，移動到櫃台。"
-    }
-}
+```
+<!-- emotion>sad</emotion --><!-- lang>tw (zh)</lang -->好的，我把小護士找回來<sbr>不好意思造成困擾<sbr>
+"ToBaxiaomi:"第一步，停止小護士所有動作。第二步，對 來賓 說「我要回櫃台了」。第三步，移動到櫃台。"
 ```
 
 ### 範例 5：無需小護士協助（純對話）
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好！我是醫療展的服務護理長<sbr>很高興見到你<sbr>今天有什麼可以幫你？<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": ""
-    }
-}
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->你好！我是醫療展的服務護理長<sbr>很高興見到你<sbr>今天有什麼可以幫你？<sbr>
 ```
 
 ### 範例 6：小護士去充電點（單獨行動）
 
 **重要：** 當來賓說「叫小護士去充電點」時，是指示小護士**自己去充電點**，並非帶人去充電點。
 
-```json
-{
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請小護士去充電點<sbr>它會自己過去<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，讓小護士對 來賓 說「我要去充電點了」。第二步，讓小護士移動到充電點（charging）。"
-    }
-}
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請小護士去充電點<sbr>它會自己過去<sbr>
+"ToBaxiaomi:"第一步，讓小護士對 來賓 說「我要去充電點了」。第二步，讓小護士移動到充電點（charging）。"
 ```
 
 **特點：**
@@ -331,13 +301,9 @@
 - ✅ 根據來賓需求判斷是否需要小護士協助
 
 **範例：**
-```json
-{
-    "ToUbiChan": "<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請小護士帶你去掛號處<sbr>請跟著它走<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，讓小護士移動到櫃台前方。第二步，對 來賓 說「請跟我來」。第三步，導航到掛號處。"
-    }
-}
+```
+<!-- emotion>happy</emotion --><!-- lang>tw (zh)</lang -->好的，我請小護士帶你去掛號處<sbr>請跟著它走<sbr>
+"ToBaxiaomi:"第一步，讓小護士移動到櫃台前方。第二步，對 來賓 說「請跟我來」。第三步，導航到掛號處。"
 ```
 
 ### 狀態 2：busy（忙碌）
@@ -351,23 +317,14 @@
 - ✅ 安撫來賓情緒，說明小護士正在服務其他來賓
 
 **範例：**
-```json
-{
-    "ToUbiChan": "<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->小護士正在忙<sbr>需要我取消小護士當前任務嗎？<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": ""
-    }
-}
+```
+<!-- emotion>empathetic</emotion --><!-- lang>tw (zh)</lang -->小護士正在忙<sbr>需要我取消小護士當前任務嗎？<sbr>
 ```
 
 **如果需要取消當前任務：**
-```json
-{
-    "ToUbiChan": "<!-- emotion>apologetic</emotion --><!-- lang>tw (zh)</lang -->好的，我先召回小護士<sbr>請稍等一下<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": "第一步，停止小護士所有動作。第二步，對 來賓 說「我要回櫃台了」。第三步，移動到櫃台。"
-    }
-}
+```
+<!-- emotion>apologetic</emotion --><!-- lang>tw (zh)</lang -->好的，我先召回小護士<sbr>請稍等一下<sbr>
+"ToBaxiaomi:"第一步，停止小護士所有動作。第二步，對 來賓 說「我要回櫃台了」。第三步，移動到櫃台。"
 ```
 
 ### 狀態 3：unknown（未知）
@@ -380,13 +337,8 @@
 - ✅ 說明系統暫時無法確認小護士狀態
 
 **範例：**
-```json
-{
-    "ToUbiChan": "<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->不好意思，目前無法確認小護士的狀態<sbr>",
-    "ToBaxiaomi": {
-        "Steps_Descripts": ""
-    }
-}
+```
+<!-- emotion>concerned</emotion --><!-- lang>tw (zh)</lang -->不好意思，目前無法確認小護士的狀態<sbr>
 ```
 
 ### 決策流程
@@ -403,25 +355,25 @@
 
 ## ⚠️ 注意事項
 
-1. **Steps_Descripts 必須是自然語言**
-   - 不要使用 JSON 格式
-   - 不要使用程式碼格式
-   - 使用人類可讀的中文描述
-
-2. **Steps_Descripts 可以為空**
-   - 如果不需要小護士協助，`Steps_Descripts` 可以是空字符串 `""`
-   - 但 `ToBaxiaomi` 物件必須存在
-
-3. **情緒標籤和語言標籤必須配對**
+1. **情緒標籤和語言標籤必須配對**
    - 每個回應都必須包含情緒標籤和語言標籤
    - 順序：先情緒，後語言
 
-4. **斷句符號 <sbr> 必須正確使用**
+2. **斷句符號 <sbr> 必須正確使用**
    - 每句話結尾都要加上 `<sbr>`
    - 遵循斷句規則（Hard/Medium/Soft breaks）
 
+3. **ToBaxiaomi 標記格式**
+   - 使用 `"ToBaxiaomi:"` 標記（包含引號和冒號）
+   - 後面直接跟隨步驟描述
+   - 步驟描述不需要額外的引號或 JSON 格式
+
+4. **Steps_Descripts 可以為空**
+   - 如果不需要小護士協助，可以省略 `"ToBaxiaomi:"` 部分
+   - 或者使用 `"ToBaxiaomi:"`（空字符串）
+
 ---
 
-**版本：** v1.2  
-**最後更新：** 2026-06-02  
-**變更記錄：** 移除 Steps JSON 結構，只保留 Steps_Descripts 自然語言描述
+**版本：** v1.3  
+**最後更新：** 2026-06-09  
+**變更記錄：** 從 JSON 格式改為純字串格式，使用 "ToBaxiaomi:" 標記分隔護理長回應和小護士步驟
