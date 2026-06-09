@@ -395,27 +395,7 @@ class MedUbiOutputParser:
                 if baxiaomi_part.startswith('"') and baxiaomi_part.endswith('"'):
                     baxiaomi_part = baxiaomi_part[1:-1]
                 
-                # 2. 驗證 ToUbiChan 部分包含必要的情緒和語言標籤
-                has_emotion = '<!-- emotion' in ubichan_part or '<!--emotion' in ubichan_part
-                has_lang = '<!-- lang' in ubichan_part or '<!--lang' in ubichan_part
-                
-                if not has_emotion:
-                    return {
-                        "success": False,
-                        "ToUbiChan": None,
-                        "ToBaxiaomi": None,
-                        "error": "缺少情緒標籤 <!-- emotion>...</emotion -->"
-                    }
-                
-                if not has_lang:
-                    return {
-                        "success": False,
-                        "ToUbiChan": ubichan_part,
-                        "ToBaxiaomi": None,
-                        "error": "缺少語言標籤 <!-- lang>...</lang -->"
-                    }
-                
-                # 3. 成功解析
+                # 2. 成功解析
                 return {
                     "success": True,
                     "ToUbiChan": ubichan_part,
@@ -426,26 +406,6 @@ class MedUbiOutputParser:
                 }
             else:
                 # 沒有 ToBaxiaomi 標記，只返回 ToUbiChan 部分
-                # 驗證是否包含必要的情緒和語言標籤
-                has_emotion = '<!-- emotion' in llm_response or '<!--emotion' in llm_response
-                has_lang = '<!-- lang' in llm_response or '<!--lang' in llm_response
-                
-                if not has_emotion:
-                    return {
-                        "success": False,
-                        "ToUbiChan": None,
-                        "ToBaxiaomi": None,
-                        "error": "缺少情緒標籤 <!-- emotion>...</emotion -->"
-                    }
-                
-                if not has_lang:
-                    return {
-                        "success": False,
-                        "ToUbiChan": llm_response,
-                        "ToBaxiaomi": None,
-                        "error": "缺少語言標籤 <!-- lang>...</lang -->"
-                    }
-                
                 return {
                     "success": True,
                     "ToUbiChan": llm_response,
