@@ -226,20 +226,14 @@ class MedUbiPromptBuilder:
             # LLM2：載入完整內容
             knowledge_section = knowledge_content if knowledge_content else "無"
 
-        # 4. 小護士 Action 說明
-        robot_action_spec = self._get_robot_action_spec()
-
-        # 5. 格式化對話歷史
+        # 4. 格式化對話歷史
         recent_history = conversation_history[-10:] if conversation_history else []
         history_text = "\n".join([
             f"{msg['role']}: {msg['content']}" 
             for msg in recent_history
         ]) if recent_history else "（無）"
         
-        # 6. 小護士設備狀態
-        robot_state_info = self._get_robot_state_info(robot_state)
-        
-        # 7. 組合 Prompt（不包含用戶問題，用戶問題將在 api.py 中作為 "role": "user" 傳遞）
+        # 5. 組合 Prompt（不包含用戶問題和小護士設備狀態，這些將在 api.py 中處理）
         prompt = f"""# 角色風格
 {style_content}
 
@@ -248,12 +242,6 @@ class MedUbiPromptBuilder:
 
 # 知識庫內容
 {knowledge_section}
-
-# 小護士 Action 說明
-{robot_action_spec}
-
-# 小護士設備狀態
-{robot_state_info}
 
 # 對話歷史
 {history_text}

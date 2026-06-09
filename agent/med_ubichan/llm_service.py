@@ -291,6 +291,7 @@ class MedUbiLLMService(UbiLLMService):
         self,
         prompt: str,
         user_message: str,
+        robot_state: str = "available",
         conversation_history: List[Dict[str, str]] = None,
         temperature: float = 0.7,
         max_tokens: int = 2048
@@ -301,6 +302,7 @@ class MedUbiLLMService(UbiLLMService):
         Args:
             prompt: 完整的 Prompt（作為 system content）
             user_message: 用戶問題（作為 user content）
+            robot_state: 小護士設備狀態（available | busy | unknown）
             conversation_history: 對話歷史（可選）
             temperature: 溫度參數
             max_tokens: 最大 token 數
@@ -323,6 +325,10 @@ class MedUbiLLMService(UbiLLMService):
                 {
                     "role": "user",
                     "content": user_message
+                },
+                {
+                    "role": "tool",
+                    "content": self._get_robot_state_info(robot_state)
                 }
             ]
             
@@ -352,6 +358,33 @@ class MedUbiLLMService(UbiLLMService):
                 "parsed": None,
                 "error": str(e)
             }
+    
+    def _get_robot_state_info(self, state: str) -> str:
+        """
+        根據小護士設備狀態生成對應的提示資訊
+        
+        Args:
+            state: 設備狀態（available | busy | unknown）
+        
+        Returns:
+            狀態說明文字
+        """
+        if state == "available":
+            return """**小護士當前狀態：available（空閒）**
+- 可以指派小護士執行新任務
+- 可以派遣小護士進行導航、取物等動作
+- 請根據用戶需求判斷是否需要小護士協助"""
+        elif state == "busy":
+            return """**小護士當前狀態：busy（忙碌）**
+- 小護士正在執行前一次任務
+- **只能指派「取消」動作**，讓小護士停止當前任務並返回櫃台
+- **不可指派新的導航或取物任務**
+- 如果用戶需要幫助，請用語言引導，等待小護士完成當前任務"""
+        else:  # unknown
+            return """**小護士當前狀態：unknown（未知）**
+- 無法確認小護士的當前狀態
+- **不可指派小護士進行任何任務**
+- 請用語言引導來賓，不要派遣小護士"""
 
 
 # 工廠函數
