@@ -382,8 +382,8 @@ class MedUbiOutputParser:
             }
         """
         try:
-            # 1. 檢查是否包含 "ToBaxiaomi:" 標記
-            to_baxiaomi_marker = "ToBaxiaomi:"
+            # 1. 檢查是否包含 "ToBaxiaomi:" 標記（包含引號）
+            to_baxiaomi_marker = '"ToBaxiaomi:"'
             
             if to_baxiaomi_marker in llm_response:
                 # 分割成兩部分：ToUbiChan 和 ToBaxiaomi
@@ -391,9 +391,9 @@ class MedUbiOutputParser:
                 ubichan_part = parts[0].strip()
                 baxiaomi_part = parts[1].strip() if len(parts) > 1 else ""
                 
-                # 移除 ToBaxiaomi 部分的前後引號（如果有）
-                if baxiaomi_part.startswith('"') and baxiaomi_part.endswith('"'):
-                    baxiaomi_part = baxiaomi_part[1:-1]
+                # 移除 ToBaxiaomi 部分的末尾引號（如果有）
+                if baxiaomi_part.endswith('"'):
+                    baxiaomi_part = baxiaomi_part[:-1]
                 
                 # 2. 成功解析
                 return {
