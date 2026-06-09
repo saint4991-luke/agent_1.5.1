@@ -399,9 +399,7 @@ class MedUbiOutputParser:
                 return {
                     "success": True,
                     "ToUbiChan": ubichan_part,
-                    "ToBaxiaomi": {
-                        "Steps_Descripts": baxiaomi_part
-                    },
+                    "ToBaxiaomi": baxiaomi_part,  # 直接是字串，不再是物件
                     "error": None
                 }
             else:
@@ -409,9 +407,7 @@ class MedUbiOutputParser:
                 return {
                     "success": True,
                     "ToUbiChan": llm_response,
-                    "ToBaxiaomi": {
-                        "Steps_Descripts": ""
-                    },
+                    "ToBaxiaomi": "",  # 空字串
                     "error": None
                 }
 

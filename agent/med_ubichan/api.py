@@ -677,13 +677,14 @@ async def generate_response_with_llm(
                     "error": parsed_data["error"]
                 }
 
-        # 3. 提取數據（無需額外驗證）
+        # 3. 提取數據（ToBaxiaomi 現在直接是字串）
         ubichan_content = parsed_data["ToUbiChan"]
+        to_baxiaomi_str = parsed_data.get("ToBaxiaomi", "")
 
         return {
             "success": True,
             "ubichan_output": ubichan_content,
-            "robot_steps_descripts": parsed_data["ToBaxiaomi"].get("Steps_Descripts"),
+            "robot_steps_descripts": to_baxiaomi_str,  # 直接是字串
             "error": None
         }
 
