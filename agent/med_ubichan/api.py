@@ -290,7 +290,11 @@ async def generate_med_ubichan_stream(
             "id": event_id
         }
         yield format_med_ubichan_sse(error_event)
-        return
+        
+        # 🚨 發送 [DONE] 標記（確保前端正確關閉連接）
+        yield "data: [DONE]\n\n"
+        
+        return  # 結束串流
 
     print(f"✅ LLM 生成成功 ({llm_time}ms)")
 
